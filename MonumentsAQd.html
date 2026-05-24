@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L'Aquila 360° — Tour Virtuale dei Monumenti</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Cinzel:wght@400;600&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --gold: #c9a84c;
+  --gold2: #e8c97a;
+  --dark: #080604;
+  --dark2: #110e08;
+  --dark3: #1a1610;
+  --parch: #f0e6ce;
+  --muted: #b8a880;
+}
+html, body { height:100%; overflow:hidden; }
+body {
+  background: var(--dark);
+  font-family: 'Crimson Text', Georgia, serif;
+  color: var(--parch);
+  display: grid;
+  grid-template-rows: 58px 1fr;
+  grid-template-columns: 300px 1fr;
+  grid-template-areas:
+    "header header"
+    "sidebar map";
+  height: 100vh;
+}
+
+/* ── HEADER ── */
+header {
+  grid-area: header;
+  background: var(--dark2);
+  border-bottom: 1px solid rgba(201,168,76,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: relative;
+  z-index: 50;
+}
+header::after {
+  content:'';
+  position:absolute; bottom:0; left:0; right:0; height:1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.brand { display:flex; align-items:center; gap:14px; }
+.brand-eagle { font-size:28px; }
+.brand-text h1 {
+  font-family:'Cinzel Decorative', serif;
+  font-size:15px; color:var(--gold); letter-spacing:2px; line-height:1;
+}
+.brand-text p { font-size:10px; color:var(--muted); letter-spacing:2.5px; margin-top:3px; opacity:0.65; }
+.header-right { display:flex; align-items:center; gap:20px; }
+.badge {
+  font-family:'Cinzel', serif; font-size:9px; letter-spacing:2px;
+  color:var(--gold); border:1px solid rgba(201,168,76,0.4); padding:5px 14px; opacity:0.8;
+}
+.stat {
+  display:flex; align-items:center; gap:6px;
+  font-family:'Cinzel', serif; font-size:9px; letter-spacing:1.5px; color:var(--muted); opacity:0.6;
+}
+.dot { width:6px; height:6px; border-radius:50%; background:#4caf72; box-shadow:0 0 6px #4caf72; animation:blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── LANGUAGE SWITCH ── */
+.lang-switch {
+  display:flex; align-items:center;
+  border:1px solid rgba(201,168,76,0.35);
+  overflow:hidden;
+}
+.lang-btn {
+  background:none; border:none; cursor:pointer;
+  font-family:'Cinzel',serif; font-size:10px; letter-spacing:1.5px;
+  color:var(--muted); padding:5px 12px;
+  transition:all 0.2s; opacity:0.55;
+}
+.lang-btn:first-child { border-right:1px solid rgba(201,168,76,0.2); }
+.lang-btn.active { background:var(--gold); color:var(--dark); opacity:1; font-weight:600; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--dark2);
+  border-right: 1px solid rgba(201,168,76,0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+}
+.sidebar-head {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid rgba(201,168,76,0.1);
+  flex-shrink: 0;
+}
+.sidebar-head h2 {
+  font-family:'Cinzel', serif; font-size:9px; letter-spacing:3px;
+  color:var(--gold); opacity:0.65; text-transform:uppercase; margin-bottom:5px;
+}
+.sidebar-head p { font-size:12px; color:var(--muted); opacity:0.5; }
+
+.monument-list {
+  flex:1; overflow-y:auto;
+  scrollbar-width:thin; scrollbar-color:rgba(201,168,76,0.25) transparent;
+}
+.m-item {
+  display:flex; align-items:center; gap:13px;
+  padding:13px 20px; cursor:pointer;
+  border-bottom:1px solid rgba(201,168,76,0.06);
+  transition:all 0.2s; position:relative;
+}
+.m-item:hover { background:rgba(201,168,76,0.06); }
+.m-item.active { background:rgba(201,168,76,0.11); }
+.m-item.active::before {
+  content:''; position:absolute; left:0; top:0; bottom:0;
+  width:2px; background:var(--gold);
+}
+.m-num { font-family:'Cinzel',serif; font-size:10px; color:var(--gold); opacity:0.4; min-width:22px; }
+.m-info { flex:1; min-width:0; }
+.m-name { font-size:13.5px; font-weight:600; color:var(--parch); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.3; }
+.m-type { font-size:11px; color:var(--muted); opacity:0.5; margin-top:2px; }
+.m-dot {
+  width:8px; height:8px; border-radius:50; flex-shrink:0;
+  background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3);
+  border-radius:50%;
+}
+.m-dot.ready { background:#4caf72; border-color:#4caf72; box-shadow:0 0 5px #4caf72; }
+
+/* ── MAPPA ── */
+#map-area { grid-area:map; position:relative; overflow:hidden; }
+#map { width:100%; height:100%; }
+.leaflet-tile { filter:brightness(0.5) saturate(0.3) sepia(0.4); }
+.leaflet-popup-content-wrapper {
+  background:rgba(8,6,4,0.97)!important;
+  border:1px solid rgba(201,168,76,0.45)!important;
+  border-radius:0!important;
+  box-shadow:0 8px 40px rgba(0,0,0,0.9)!important;
+  font-family:'Crimson Text',serif!important;
+  min-width:230px;
+}
+.leaflet-popup-tip { background:rgba(8,6,4,0.97)!important; }
+.leaflet-popup-close-button { color:var(--gold)!important; font-size:18px!important; top:8px!important; right:10px!important; }
+.pop-inner { padding:6px 4px 4px; }
+.pop-name { font-family:'Cinzel',serif; font-size:13px; color:var(--gold); margin-bottom:5px; letter-spacing:0.5px; }
+.pop-type { font-size:11px; color:var(--muted); opacity:0.55; margin-bottom:8px; }
+.pop-desc { font-size:13px; color:var(--muted); line-height:1.55; margin-bottom:12px; opacity:0.85; }
+.pop-btn {
+  display:block; width:100%; background:var(--gold); color:var(--dark);
+  border:none; padding:9px; font-family:'Cinzel',serif;
+  font-size:9px; letter-spacing:2px; text-transform:uppercase; cursor:pointer;
+  transition:background 0.2s;
+}
+.pop-btn:hover { background:var(--gold2); }
+
+/* Marker */
+.mk {
+  width:36px; height:36px;
+  background:var(--gold); border:2px solid #000;
+  border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 4px 14px rgba(0,0,0,0.7); transition:all 0.2s;
+}
+.mk:hover { background:var(--gold2); transform:rotate(-45deg) scale(1.1); }
+.mk.active { background:#fff; transform:rotate(-45deg) scale(1.2); }
+.mk span { transform:rotate(45deg); font-family:'Cinzel',serif; font-size:11px; font-weight:700; color:#000; }
+
+/* ── OVERLAY 360° ── */
+.overlay-360 {
+  position:fixed; inset:0; z-index:1000;
+  background:rgba(5,4,2,0.97);
+  display:flex; flex-direction:column;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.3s ease;
+}
+.overlay-360.open { opacity:1; pointer-events:auto; }
+
+/* Header overlay */
+.ov-header {
+  display:flex; align-items:center; gap:20px;
+  padding:16px 28px;
+  background:var(--dark2);
+  border-bottom:1px solid rgba(201,168,76,0.2);
+  flex-shrink:0;
+  position:relative;
+}
+.ov-header::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.ov-back {
+  display:flex; align-items:center; gap:8px;
+  font-family:'Cinzel',serif; font-size:10px; letter-spacing:2px;
+  color:var(--muted); opacity:0.6; cursor:pointer;
+  border:1px solid rgba(201,168,76,0.2); padding:7px 14px;
+  transition:all 0.2s; background:none; flex-shrink:0;
+}
+.ov-back:hover { color:var(--gold); opacity:1; border-color:rgba(201,168,76,0.5); background:rgba(201,168,76,0.06); }
+.ov-back span { font-size:16px; }
+.ov-title-block { flex:1; }
+.ov-label { font-family:'Cinzel',serif; font-size:9px; letter-spacing:3px; color:var(--gold); opacity:0.5; margin-bottom:5px; text-transform:uppercase; }
+.ov-name { font-family:'Cinzel Decorative',serif; font-size:20px; color:var(--parch); line-height:1.2; }
+.ov-type { font-size:13px; color:var(--muted); opacity:0.55; margin-top:3px; }
+.ov-close {
+  width:44px; height:44px;
+  display:flex; align-items:center; justify-content:center;
+  border:1px solid rgba(201,168,76,0.35); background:none;
+  color:var(--gold); font-size:22px; cursor:pointer;
+  transition:all 0.2s; flex-shrink:0; line-height:1;
+}
+.ov-close:hover { background:rgba(201,168,76,0.1); border-color:var(--gold); transform:scale(1.05); }
+
+/* Body overlay — viewer + info side by side */
+.ov-body {
+  flex:1; display:flex; overflow:hidden;
+}
+.ov-viewer {
+  flex:1; position:relative; overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--dark);
+}
+
+/* Placeholder */
+.placeholder {
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:18px; text-align:center; padding:48px;
+}
+.ph-ring {
+  width:130px; height:130px;
+  border:2px solid rgba(201,168,76,0.15);
+  border-top:2px solid var(--gold);
+  border-right:2px solid rgba(201,168,76,0.4);
+  border-radius:50%;
+  animation:spin 3s linear infinite;
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+}
+.ph-ring::before {
+  content:''; position:absolute; inset:8px;
+  border:1px solid rgba(201,168,76,0.08);
+  border-radius:50%;
+}
+.ph-ring::after {
+  content:'360°';
+  font-family:'Cinzel',serif; font-size:18px; color:var(--gold); opacity:0.8;
+  animation:spin-rev 3s linear infinite;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes spin-rev { to{transform:rotate(-360deg)} }
+.ph-title { font-family:'Cinzel',serif; font-size:16px; color:var(--gold); letter-spacing:2px; }
+.ph-sub { font-size:15px; color:var(--muted); opacity:0.5; line-height:1.7; max-width:320px; }
+.ph-tag {
+  font-family:'Cinzel',serif; font-size:9px; letter-spacing:2.5px;
+  color:var(--gold); border:1px solid rgba(201,168,76,0.3);
+  padding:7px 20px; opacity:0.65; text-transform:uppercase; margin-top:4px;
+}
+
+/* Info sidebar dentro overlay */
+.ov-info {
+  width:320px; flex-shrink:0;
+  background:var(--dark2);
+  border-left:1px solid rgba(201,168,76,0.12);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.ov-info-section {
+  padding:24px 22px;
+  border-bottom:1px solid rgba(201,168,76,0.08);
+}
+.ov-info-label {
+  font-family:'Cinzel',serif; font-size:8px; letter-spacing:3px;
+  color:var(--gold); opacity:0.5; text-transform:uppercase; margin-bottom:10px; display:block;
+}
+.ov-info-desc { font-size:15px; color:var(--muted); line-height:1.75; opacity:0.8; }
+
+.ov-nav { padding:20px 22px; display:flex; gap:10px; flex-direction:column; }
+.ov-nav-label { font-family:'Cinzel',serif; font-size:8px; letter-spacing:3px; color:var(--gold); opacity:0.5; text-transform:uppercase; margin-bottom:4px; }
+.ov-nav-btns { display:flex; gap:8px; }
+.ov-nav-btn {
+  flex:1; background:none; border:1px solid rgba(201,168,76,0.25);
+  color:var(--muted); padding:8px; font-family:'Cinzel',serif;
+  font-size:9px; letter-spacing:1.5px; cursor:pointer; transition:all 0.2s;
+}
+.ov-nav-btn:hover { border-color:var(--gold); color:var(--gold); background:rgba(201,168,76,0.05); }
+
+.ov-list {
+  flex:1; overflow-y:auto;
+  scrollbar-width:thin; scrollbar-color:rgba(201,168,76,0.2) transparent;
+}
+.ov-list-label { font-family:'Cinzel',serif; font-size:8px; letter-spacing:3px; color:var(--gold); opacity:0.5; text-transform:uppercase; padding:16px 22px 8px; }
+.ov-list-item {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 22px; cursor:pointer;
+  border-bottom:1px solid rgba(201,168,76,0.05);
+  transition:background 0.15s;
+}
+.ov-list-item:hover { background:rgba(201,168,76,0.06); }
+.ov-list-item.active { background:rgba(201,168,76,0.1); }
+.ov-list-item.active::before { content:'›'; color:var(--gold); font-size:16px; }
+.ov-li-num { font-family:'Cinzel',serif; font-size:9px; color:var(--gold); opacity:0.35; min-width:18px; }
+.ov-li-name { font-size:12px; color:var(--parch); opacity:0.8; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* iframe fullscreen nel viewer */
+.pano-frame { width:100%; height:100%; border:none; display:block; }
+
+/* Pannellum container */
+#pannellum-container { width:100%; height:100%; }
+.pnlm-container { background: var(--dark) !important; }
+.pnlm-load-button { background: var(--gold) !important; color: var(--dark) !important; font-family: 'Cinzel', serif !important; border-radius: 0 !important; }
+
+
+/* Info tab */
+.ov-tabs { display:flex; gap:0; border-bottom:1px solid rgba(201,168,76,0.15); margin-bottom:16px; }
+.ov-tab-btn { background:none; border:none; border-bottom:2px solid transparent; padding:8px 16px;
+  font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; color:var(--muted); opacity:0.5;
+  cursor:pointer; transition:all 0.2s; text-transform:uppercase; }
+.ov-tab-btn.active { color:var(--gold); opacity:1; border-bottom-color:var(--gold); }
+.ov-tab-panel { display:none; }
+.ov-tab-panel.active { display:block; }
+.ov-info-text { font-family:'Crimson Text',serif; font-size:14px; color:var(--muted); line-height:1.75; opacity:0.85; }
+.ov-info-text p { margin-bottom:14px; }
+.ov-info-text p:last-child { margin-bottom:0; }
+
+/* ── INFO TABS ── */
+.ov-tabs { display:flex; gap:0; border-bottom:1px solid rgba(201,168,76,0.15); margin-bottom:16px; flex-shrink:0; }
+.ov-tab-btn { background:none; border:none; border-bottom:2px solid transparent; padding:8px 16px;
+  font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px; color:var(--muted); opacity:0.5;
+  cursor:pointer; transition:all 0.2s; text-transform:uppercase; }
+.ov-tab-btn.active { color:var(--gold); opacity:1; border-bottom-color:var(--gold); }
+.ov-tab-panel { display:none; }
+.ov-tab-panel.active { display:block; }
+.ov-info-text { font-family:'Crimson Text',serif; font-size:14px; color:var(--muted); line-height:1.75; opacity:0.85; }
+.ov-info-text p { margin-bottom:14px; }
+.ov-info-text p:last-child { margin-bottom:0; }
+
+/* Welcome state sulla mappa */
+.map-hint {
+  position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
+  background:rgba(8,6,4,0.85); border:1px solid rgba(201,168,76,0.3);
+  backdrop-filter:blur(8px);
+  padding:10px 20px; z-index:20;
+  font-family:'Cinzel',serif; font-size:10px; letter-spacing:2px;
+  color:var(--gold); opacity:0.75; white-space:nowrap;
+  animation:fadeHint 0.5s ease 1s both;
+  pointer-events:none;
+}
+@keyframes fadeHint { from{opacity:0;transform:translateX(-50%) translateY(8px)} to{opacity:0.75;transform:translateX(-50%) translateY(0)} }
+
+/* ── SPLASH INTRO ── */
+.splash {
+  position:fixed; inset:0; z-index:2000;
+  background:var(--dark);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+  transition:opacity 0.6s ease, transform 0.6s ease;
+}
+.splash.hiding {
+  opacity:0; transform:scale(1.02); pointer-events:none;
+}
+.splash-bg {
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 70% 50%, rgba(201,168,76,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 60% at 20% 80%, rgba(201,168,76,0.04) 0%, transparent 60%);
+  pointer-events:none;
+}
+.splash-grid {
+  position:absolute; inset:0; opacity:0.03;
+  background-image: linear-gradient(rgba(201,168,76,1) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(201,168,76,1) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events:none;
+}
+.splash-inner {
+  position:relative; z-index:1;
+  flex:1; display:flex;
+  max-width:900px; margin:0 auto; width:100%;
+  padding:0 48px;
+}
+.splash-left {
+  width:340px; flex-shrink:0;
+  display:flex; flex-direction:column;
+  justify-content:center;
+  padding-right:48px;
+  border-right:1px solid rgba(201,168,76,0.15);
+}
+.splash-eagle { font-size:56px; margin-bottom:20px; }
+.splash-pretitle {
+  font-family:'Cinzel',serif; font-size:9px; letter-spacing:4px;
+  color:var(--gold); opacity:0.6; text-transform:uppercase; margin-bottom:12px;
+}
+.splash-title {
+  font-family:'Cinzel Decorative',serif; font-size:32px;
+  color:var(--gold); line-height:1.15; margin-bottom:8px;
+}
+.splash-subtitle {
+  font-family:'Cinzel',serif; font-size:11px; letter-spacing:2px;
+  color:var(--muted); opacity:0.7; margin-bottom:28px;
+}
+.splash-divider {
+  width:40px; height:1px; background:var(--gold); opacity:0.4; margin-bottom:28px;
+}
+.splash-badge {
+  display:inline-block;
+  font-family:'Cinzel',serif; font-size:9px; letter-spacing:2px;
+  color:var(--gold); border:1px solid rgba(201,168,76,0.35);
+  padding:6px 14px; margin-bottom:32px; opacity:0.8;
+}
+.splash-enter {
+  background:var(--gold); color:var(--dark);
+  border:none; padding:14px 32px;
+  font-family:'Cinzel',serif; font-size:11px; letter-spacing:3px;
+  text-transform:uppercase; cursor:pointer;
+  transition:all 0.25s; align-self:flex-start;
+}
+.splash-enter:hover { background:var(--gold2); transform:translateY(-1px); box-shadow:0 4px 20px rgba(201,168,76,0.3); }
+
+.splash-right {
+  flex:1; display:flex; flex-direction:column;
+  justify-content:center; padding-left:48px;
+  overflow:hidden;
+}
+.splash-history-label {
+  font-family:'Cinzel',serif; font-size:8px; letter-spacing:3px;
+  color:var(--gold); opacity:0.5; text-transform:uppercase; margin-bottom:16px;
+}
+.splash-history {
+  overflow-y:auto; max-height:calc(100vh - 120px);
+  scrollbar-width:thin; scrollbar-color:rgba(201,168,76,0.2) transparent;
+  padding-right:8px;
+}
+.splash-history p {
+  font-size:14px; color:var(--muted); line-height:1.85;
+  opacity:0.75; margin-bottom:18px;
+}
+.splash-history p:last-child { margin-bottom:0; }
+
+/* Splash header/footer */
+.splash-topbar {
+  height:52px; flex-shrink:0;
+  border-bottom:1px solid rgba(201,168,76,0.12);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 48px; position:relative; z-index:1;
+}
+.splash-topbar-brand { font-family:'Cinzel',serif; font-size:11px; letter-spacing:3px; color:var(--gold); opacity:0.6; }
+.splash-lang {
+  display:flex; border:1px solid rgba(201,168,76,0.3); overflow:hidden;
+}
+.splash-lang-btn {
+  background:none; border:none; cursor:pointer;
+  font-family:'Cinzel',serif; font-size:10px; letter-spacing:1.5px;
+  color:var(--muted); padding:5px 12px; transition:all 0.2s; opacity:0.55;
+}
+.splash-lang-btn:first-child { border-right:1px solid rgba(201,168,76,0.2); }
+.splash-lang-btn.active { background:var(--gold); color:var(--dark); opacity:1; font-weight:600; }
+
+/* ── SEARCH BAR ── */
+.search-bar { padding:10px 14px; border-bottom:1px solid rgba(201,168,76,0.1); flex-shrink:0; }
+.search-input {
+  width:100%; background:rgba(201,168,76,0.05);
+  border:1px solid rgba(201,168,76,0.2);
+  color:var(--parch); padding:7px 12px;
+  font-family:'Crimson Text',serif; font-size:13px;
+  outline:none; transition:border-color 0.2s;
+}
+.search-input::placeholder { color:var(--muted); opacity:0.4; }
+.search-input:focus { border-color:rgba(201,168,76,0.5); }
+.no-results { padding:28px 20px; text-align:center; font-size:13px; color:var(--muted); opacity:0.45; font-family:'Cinzel',serif; font-size:10px; letter-spacing:2px; }
+
+/* ── COUNTER ── */
+.ov-counter {
+  font-family:'Cinzel',serif; font-size:11px; letter-spacing:2px;
+  color:var(--gold); opacity:0.6; flex-shrink:0;
+  border:1px solid rgba(201,168,76,0.2); padding:5px 12px;
+}
+</style>
+</head>
+<body>
+
+<!-- ══ SPLASH INTRO ══ -->
+<div class="splash" id="splash">
+  <div class="splash-bg"></div>
+  <div class="splash-grid"></div>
+
+  <div class="splash-topbar">
+    <div class="splash-topbar-brand">L'AQUILA 360°</div>
+    <div class="splash-lang">
+      <button class="splash-lang-btn active" id="splash-btn-it" onclick="setSplashLang('it')">IT</button>
+      <button class="splash-lang-btn" id="splash-btn-en" onclick="setSplashLang('en')">EN</button>
+    </div>
+  </div>
+
+  <div class="splash-inner">
+    <!-- Colonna sinistra: brand + CTA -->
+    <div class="splash-left">
+      <div class="splash-eagle">🦅</div>
+      <div class="splash-pretitle" id="sp-pretitle">Tour Virtuale</div>
+      <div class="splash-title">L'Aquila</div>
+      <div class="splash-subtitle" id="sp-subtitle">Centro Storico • 360°</div>
+      <div class="splash-divider"></div>
+      <div class="splash-badge" id="sp-badge">Capitale della Cultura 2026</div>
+      <button class="splash-enter" id="sp-enter" onclick="enterApp()">Esplora la città →</button>
+    </div>
+
+    <!-- Colonna destra: testo storico -->
+    <div class="splash-right">
+      <div class="splash-history-label" id="sp-hist-label">Storia della città</div>
+      <div class="splash-history" id="sp-history">
+        <!-- popolato da JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="brand">
+    <div class="brand-eagle">🦅</div>
+    <div class="brand-text">
+      <h1>L'Aquila 360°</h1>
+      <p>Tour Virtuale del Centro Storico</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="badge" id="hdr-badge">Capitale della Cultura 2026</div>
+    <div class="stat"><div class="dot"></div><span id="hdr-stat">37 Monumenti</span></div>
+    <div class="lang-switch">
+      <button class="lang-btn active" id="btn-it" onclick="setLang('it')">IT</button>
+      <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+    </div>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-head">
+    <h2 id="sidebar-head-title">Centro Storico</h2>
+    <p id="sidebar-head-sub">Clicca per esplorare in 360°</p>
+  </div>
+  <div class="search-bar">
+    <input class="search-input" id="search-input" type="text" placeholder="Cerca un monumento…" oninput="filterList(this.value)">
+  </div>
+  <div class="monument-list" id="list"></div>
+</aside>
+
+<!-- MAPPA -->
+<div id="map-area">
+  <div id="map"></div>
+  <div class="map-hint" id="map-hint">🔭 Clicca un marker per esplorare</div>
+</div>
+
+<!-- OVERLAY 360° fullscreen -->
+<div class="overlay-360" id="overlay">
+
+  <div class="ov-header">
+    <button class="ov-back" onclick="close360()">
+      <span>←</span> <span id="ov-back-text">Torna alla mappa</span>
+    </button>
+    <div class="ov-title-block">
+      <div class="ov-label" id="ov-label">Vista 360°</div>
+      <div class="ov-name" id="ov-name">—</div>
+      <div class="ov-type" id="ov-type">—</div>
+    </div>
+    <div class="ov-counter" id="ov-counter">1/34</div>
+    <button class="ov-close" onclick="close360()" title="Chiudi">✕</button>
+  </div>
+
+  <div class="ov-body">
+    <div class="ov-viewer" id="ov-viewer"></div>
+
+    <div class="ov-info">
+      <div class="ov-tabs">
+        <button class="ov-tab-btn active" id="tab-btn-desc" onclick="switchTab('desc')">Descrizione</button>
+        <button class="ov-tab-btn" id="tab-btn-info" onclick="switchTab('info')">Info</button>
+        <button class="ov-tab-btn" id="tab-btn-hours" onclick="switchTab('hours')">Orari &amp; Info</button>
+      </div>
+      <div class="ov-tab-panel active" id="tab-panel-desc">
+        <div class="ov-info-section">
+          <p class="ov-info-desc" id="ov-desc">—</p>
+        </div>
+      </div>
+      <div class="ov-tab-panel" id="tab-panel-info">
+        <div class="ov-info-text" id="ov-info-text"></div>
+      </div>
+      <div class="ov-tab-panel" id="tab-panel-hours">
+        <div class="ov-info-text" id="ov-hours-text"></div>
+      </div>
+
+      <div class="ov-nav">
+        <div class="ov-nav-label" id="ov-nav-label">Naviga</div>
+        <div class="ov-nav-btns">
+          <button class="ov-nav-btn" id="ov-prev-btn" onclick="navigatePrev()">← Precedente</button>
+          <button class="ov-nav-btn" id="ov-next-btn" onclick="navigateNext()">Successivo →</button>
+        </div>
+      </div>
+
+      <div class="ov-list">
+        <div class="ov-list-label" id="ov-list-label">Tutti i Monumenti</div>
+        <div id="ov-list-items"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══ TRADUZIONI ══
+const T = {
+  badge:        {it:'Capitale della Cultura 2026', en:'Capital of Culture 2026'},
+  stat:         {it:'37 Monumenti',               en:'37 Monuments'},
+  sideHead:     {it:'Centro Storico',             en:'Historic Centre'},
+  sideSub:      {it:'Clicca per esplorare in 360°', en:'Click to explore in 360°'},
+  searchPh:     {it:'Cerca un monumento…',        en:'Search a monument…'},
+  mapHint:      {it:'🔭 Clicca un marker per esplorare', en:'🔭 Click a marker to explore'},
+  ovLabel:      {it:'Vista 360°',                 en:'360° View'},
+  ovBack:       {it:'Torna alla mappa',           en:'Back to map'},
+  ovDescLabel:  {it:'Descrizione',                en:'Description'},
+  ovNav:        {it:'Naviga',                     en:'Navigate'},
+  ovPrev:       {it:'← Precedente',               en:'← Previous'},
+  ovNext:       {it:'Successivo →',               en:'Next →'},
+  ovList:       {it:'Tutti i Monumenti',          en:'All Monuments'},
+  popBtn:       {it:'🔭 Esplora in 360°',         en:'🔭 Explore in 360°'},
+  dotAvail:     {it:'360° disponibile',           en:'360° available'},
+  dotSoon:      {it:'In arrivo',                  en:'Coming soon'},
+  phTitle:      {it:'Vista 360° in arrivo',       en:'360° View coming soon'},
+  phSub1:       {it:'La ripresa panoramica di',   en:'The 360° capture of'},
+  phSub2:       {it:'sarà disponibile a breve.',  en:'will be available soon.'},
+  phTag:        {it:'📷 Ripresa in programma',    en:'📷 Recording scheduled'},
+  noResults:    {it:'Nessun risultato',           en:'No results'},
+  tabDesc:      {it:'Descrizione',                en:'Description'},
+  tabHours:     {it:'Orari & Info',               en:'Hours & Info'},
+  tabInfo:      {it:'Info',                       en:'Info'},
+  loading360:   {it:'Caricamento 360°…',          en:'Loading 360°…'},
+  spPretitle:   {it:'Tour Virtuale',              en:'Virtual Tour'},
+  spSubtitle:   {it:'Centro Storico • 360°',      en:'Historic Centre • 360°'},
+  spBadge:      {it:'Capitale della Cultura 2026',en:'Capital of Culture 2026'},
+  spEnter:      {it:'Esplora la città →',         en:'Explore the city →'},
+  spHistLabel:  {it:'Storia della città',         en:'History of the city'},
+};
+
+// ── TESTI STORICI ──
+const HISTORY = {
+  it: [
+    "L'Aquila, capoluogo dell'Abruzzo situato a 721 metri di altitudine, nasce a metà del XIII secolo per iniziativa degli abitanti di circa settanta castelli locali che desideravano sottrarsi al controllo feudale. Questa origine collettiva ha plasmato un'urbanistica unica, dove ogni castello fondatore edificò nel proprio quartiere una piazza, una chiesa e una fontana, come testimoniato dalla celebre Fontana delle 99 Cannelle. Sebbene re Manfredi la rase al suolo nel 1259 per la sua opposizione al potere svevo, la città rinacque sotto Carlo I d'Angiò, diventando un crocevia commerciale fondamentale tra Firenze e Napoli grazie alla produzione dello zafferano e alla pastorizia transumante.",
+    "Il prestigio della città crebbe enormemente nel 1294 con l'incoronazione papale di Celestino V presso la Basilica di Santa Maria di Collemaggio, evento che diede un forte impulso allo sviluppo edilizio e civile. Nel Quattrocento, nonostante pestilenze e sismi, L'Aquila visse il suo periodo di massimo splendore economico e culturale: divenne sede di una propria zecca, di uno Studio universitario e di una delle prime stamperie d'Italia, attirando mercanti e banchieri da tutta Europa e legando il suo nome a figure religiose di spicco come San Bernardino da Siena.",
+    "L'epoca d'oro terminò nel XVI secolo con la dominazione spagnola; a seguito di una ribellione, la città fu privata del controllo sul suo territorio e costretta a finanziare la costruzione di un imponente Forte Spagnolo, che ne segnò la decadenza economica. Un ulteriore mutamento drastico avvenne dopo il catastrofico terremoto del 1703, che distrusse gran parte del volto medievale e rinascimentale, portando a una ricostruzione in stile barocco caratterizzata dal dualismo tra palazzi nobiliari e architettura sacra. Dopo l'Unità d'Italia e un periodo di isolamento infrastrutturale nell'Ottocento, la città ha affrontato la sfida più drammatica della sua storia recente con il terremoto del 6 aprile 2009, che ha colpito duramente il suo immenso patrimonio storico e la sua comunità."
+  ],
+  en: [
+    "L'Aquila, the capital of Abruzzo situated at an altitude of 721 metres, was founded in the mid-13th century at the initiative of the inhabitants of approximately seventy local castles who sought to free themselves from feudal control. This collective origin shaped a unique urban fabric, where each founding castle built its own square, church and fountain in its neighbourhood — as evidenced by the famous Fountain of the 99 Spouts. Although King Manfred razed it to the ground in 1259 for its opposition to Swabian power, the city was reborn under Charles I of Anjou, becoming a vital commercial crossroads between Florence and Naples thanks to saffron production and transhumant shepherding.",
+    "The city's prestige grew enormously in 1294 with the papal coronation of Celestine V at the Basilica of Santa Maria di Collemaggio, an event that gave a strong impetus to architectural and civic development. In the 15th century, despite plagues and earthquakes, L'Aquila experienced its period of greatest economic and cultural splendour: it became home to its own mint, a university, and one of the first printing houses in Italy, attracting merchants and bankers from across Europe and linking its name to prominent religious figures such as Saint Bernardino of Siena.",
+    "The golden age ended in the 16th century with Spanish domination; following a rebellion, the city was stripped of control over its territory and forced to finance the construction of an imposing Spanish Fortress, marking its economic decline. A further drastic change came after the catastrophic earthquake of 1703, which destroyed much of the medieval and Renaissance cityscape, leading to a Baroque reconstruction characterised by the interplay between noble palaces and sacred architecture. After Italian Unification and a period of infrastructural isolation in the 19th century, the city faced the most dramatic challenge of its recent history with the earthquake of 6 April 2009, which dealt a severe blow to its immense historic heritage and its community."
+  ]
+};
+
+let splashLang = 'it';
+let currentLang = 'it';
+
+function renderHistory() {
+  document.getElementById('sp-history').innerHTML = HISTORY[splashLang].map(p=>`<p>${p}</p>`).join('');
+}
+
+function applySplashLang() {
+  document.getElementById('splash-btn-it').classList.toggle('active', splashLang==='it');
+  document.getElementById('splash-btn-en').classList.toggle('active', splashLang==='en');
+  document.getElementById('sp-pretitle').textContent   = T.spPretitle[splashLang];
+  document.getElementById('sp-subtitle').textContent   = T.spSubtitle[splashLang];
+  document.getElementById('sp-badge').textContent      = T.spBadge[splashLang];
+  document.getElementById('sp-enter').textContent      = T.spEnter[splashLang];
+  document.getElementById('sp-hist-label').textContent = T.spHistLabel[splashLang];
+  renderHistory();
+}
+
+function setSplashLang(lang) {
+  splashLang = lang;
+  applySplashLang();
+}
+
+function enterApp() {
+  currentLang = splashLang;
+  applyAppLang();
+  const splash = document.getElementById('splash');
+  splash.classList.add('hiding');
+  setTimeout(()=>{ splash.style.display='none'; }, 650);
+}
+
+applySplashLang();
+
+// ── MONUMENTI ──
+const MONUMENTS = [
+  {id:1,  name:"Fontana delle 99 Cannelle",          type:"Fontana storica • 1272 · XV sec.",  typeEn:"Historic Fountain • 1272 · XV c.",         desc:"Simbolo della città, con 99 maschere che versano acqua — una per ogni castello fondatore dell'antica L'Aquila.", descEn:"Symbol of the city, with 99 stone masks pouring water — one for each of the founding castles of ancient L'Aquila.", lat:42.3496263,lng:13.3895646,has360:true,url360:"https://onewaywastaken.github.io/laquila-360-assets/Photo360.jpeg"},
+  {id:2,  name:"Basilica di Santa Maria di Collemaggio", type:"Basilica • XIII sec.",              typeEn:"Basilica • XIII c.",                  desc:"Capolavoro del romanico abruzzese, fondata da Pietro da Morrone (Celestino V) nel 1288. Prima sede della Perdonanza Celestiniana, il primo Giubileo della storia.", descEn:"Masterpiece of Abruzzese Romanesque, founded by Pietro da Morrone (Pope Celestine V) in 1288. Site of the Celestinian Pardon, the first Jubilee in history.", lat:42.3427127,lng:13.404685, has360:false},
+  {id:3,  name:"Forte Spagnolo",                     type:"Fortezza • XVI sec.",               typeEn:"Fortress • XVI c.",                   desc:"Imponente fortezza a pianta quadrata con fossato, costruita dagli spagnoli nel 1534 come segno di dominio sulla città ribelle.", descEn:"Imposing square fortress with a moat, built by the Spanish in 1534 as a symbol of dominion over the rebellious city.", lat:42.353631, lng:13.4051663,has360:false},
+  {id:4,  name:"Basilica di San Bernardino",         type:"Basilica • XV sec.",                typeEn:"Basilica • XV c.",                    desc:"Capolavoro rinascimentale progettato da Cola dell'Amatrice. All'interno è custodita la mummia di San Bernardino da Siena.", descEn:"Renaissance masterpiece designed by Cola dell'Amatrice. Inside, the mummified remains of Saint Bernardino of Siena are preserved.", lat:42.3502861,lng:13.4022816,has360:false},
+  {id:5,  name:"Piazza del Duomo",                   type:"Piazza principale",                 typeEn:"Main Square",                         desc:"Cuore pulsante di L'Aquila. Ospita la Cattedrale dei Santi Massimo e Giorgio e la Chiesa delle Anime Sante.", descEn:"The beating heart of L'Aquila, home to the Cathedral of Saints Maximus and George and the Church of the Holy Souls.", lat:42.3488891,lng:13.3982345,has360:false},
+  {id:6,  name:"Chiesa delle Anime Sante",           type:"Chiesa barocca • XVIII sec.",       typeEn:"Baroque Church • XVIII c.",           desc:"Costruita in memoria delle vittime del terremoto del 1703. Splendida fusione di stile barocco romano e rococò.", descEn:"Built in memory of the victims of the 1703 earthquake. A magnificent blend of Roman Baroque and Rococo styles.", lat:42.3486195,lng:13.397927, has360:false},
+  {id:7,  name:"Fontana Luminosa",                   type:"Fontana • XX sec.",                 typeEn:"Fountain • XX c.",                    desc:"Simbolo moderno della città in Piazza Battaglione Alpini. Il nome 'Luminosa' viene dal sofisticato sistema di illuminazione che colora l'acqua di notte. D'inverno ghiaccia in modo spettacolare.", descEn:"Modern symbol of the city in Piazza Battaglione Alpini. The name 'Luminosa' comes from its sophisticated lighting system that colors the water at night. In winter it freezes spectacularly.", lat:42.3538315,lng:13.4013616,has360:false},
+  {id:8,  name:"I Quattro Cantoni",                  type:"Incrocio storico",                  typeEn:"Historic Crossroads",                 desc:"Crocevia simbolico del centro: il punto di incontro tra i quattro quartieri storici fondatori della città.", descEn:"The symbolic crossroads of the city centre, the meeting point of the four historic founding quarters of L'Aquila.", lat:42.350687, lng:13.3999703,has360:false},
+  {id:9,  name:"San Giuseppe Artigiano",              type:"Chiesa • XX sec.",                  typeEn:"Church • XX c.",                      desc:"Chiesa dedicata a San Giuseppe nel Quarto di San Pietro, cuore dell'identità artigiana della città. Punto di riferimento del culto lavorativo del centro storico.", descEn:"Church dedicated to Saint Joseph in the San Pietro quarter, heart of the city's artisan identity. A focal point of working-class devotion in the historic centre.", lat:42.3497373,lng:13.3968213,has360:false},
+  {id:10, name:"Statua di Sallustio",                type:"Monumento • 1903",                  typeEn:"Monument • 1903",                     desc:"Storico punto di ritrovo aquilano. Rappresenta il grande storico latino Gaio Sallustio Crispo, nato ad Amiternum.", descEn:"A historic meeting point for the people of L'Aquila. It depicts the great Latin historian Gaius Sallustius Crispus, born in nearby Amiternum.", lat:42.35111,  lng:13.3987152,has360:false},
+  {id:11, name:"MAXXI L'Aquila – Palazzo Ardinghelli",type:"Museo d'arte contemporanea",      typeEn:"Museum of Contemporary Art",          desc:"Sede aquilana del MAXXI, ospitata nel seicentesco Palazzo Ardinghelli restaurato dopo il sisma. Centro di arte e cultura contemporanea.", descEn:"L'Aquila branch of the MAXXI museum, in the 17th-century Palazzo Ardinghelli restored after the 2009 earthquake.", lat:42.3508,   lng:13.3975,   has360:false},
+  {id:12, name:"Teatro San Filippo",                 type:"Teatro storico • XVIII sec.",       typeEn:"Historic Theatre • XVIII c.",         desc:"Elegante teatro barocco nel cuore del centro storico, un tempo principale luogo di spettacolo della città.", descEn:"Elegant Baroque theatre in the heart of the historic centre, once the city's main performance venue.", lat:42.3502,   lng:13.3958,   has360:false},
+  {id:13, name:"Chiesa di Santa Giusta",             type:"Chiesa • XV sec.",                  typeEn:"Church • XV c.",                      desc:"Bella chiesa rinascimentale con un portale gotico-transitorio e pregiati dipinti interni.", descEn:"Beautiful Renaissance church with a Gothic-transitional portal and valuable interior paintings.", lat:42.3495,   lng:13.3948,   has360:false},
+  {id:14, name:"Santa Maria Paganica",               type:"Basilica • XIII sec.",               typeEn:"Basilica • XIII c.",                  desc:"Basilica che sorge nel punto più elevato del centro storico. Fondata dagli abitanti del castello di Paganica nel XIII sec., uno dei castelli fondatori di L'Aquila.", descEn:"Basilica at the highest point of the historic centre. Founded in the 13th century by the lords of Paganica castle, one of L'Aquila's founding castles.", lat:42.3512,   lng:13.3962,   has360:false},
+  {id:15, name:"Le Cancelle",                        type:"Porta storica • XIV sec.",          typeEn:"Historic Gate • XIV c.",              desc:"Antica porta di accesso al centro storico aquilano, testimonianza delle antiche mura difensive della città.", descEn:"Ancient gateway to the historic centre, a testament to the city's old defensive walls.", lat:42.3475,   lng:13.4032,   has360:false},
+  {id:16, name:"Torre del Comune",                   type:"Torre civica • XIV sec.",           typeEn:"Civic Tower • XIV c.",                desc:"Torre civica simbolo del potere comunale, affiancata al Palazzo del Municipio nel centro storico.", descEn:"Civic tower symbolising communal power, standing beside the Town Hall in the historic centre.", lat:42.3490,   lng:13.3980,   has360:false},
+  {id:17, name:"Chiesa di San Silvestro",            type:"Chiesa • XIII sec.",                typeEn:"Church • XIII c.",                    desc:"Una delle più antiche chiese aquilane, con elementi romanici e affreschi medievali di notevole interesse artistico.", descEn:"One of L'Aquila's oldest churches, featuring Romanesque elements and medieval frescoes of considerable artistic interest.", lat:42.3518,   lng:13.3985,   has360:false},
+  {id:18, name:"Le Mura",                            type:"Mura medievali • XIV sec.",         typeEn:"Medieval Walls • XIV c.",             desc:"Tratto delle antiche mura difensive medievali che circondavano la città, ancora parzialmente visibili.", descEn:"Section of the ancient medieval defensive walls that once surrounded the city, still partially visible today.", lat:42.3530,   lng:13.4025,   has360:false},
+  {id:19, name:"L'Aquila Sotterranea",               type:"Sito sotterraneo",                  typeEn:"Underground Site",                    desc:"Rete di gallerie e cunicoli sotterranei sotto il centro storico, utilizzati nei secoli per scopi civili e difensivi.", descEn:"Network of underground tunnels beneath the historic centre, used over the centuries for civic and defensive purposes.", lat:42.3488,   lng:13.3992,   has360:false},
+  {id:20, name:"Teatro Stabile d'Abruzzo",           type:"Teatro • Via Verdi",                typeEn:"Regional Theatre • Via Verdi",        desc:"Sede del Teatro Stabile d'Abruzzo, principale istituzione teatrale regionale, con un ricco cartellone di prosa e spettacoli.", descEn:"Home of the Abruzzo Regional Theatre, the main theatrical institution of the region, with a rich programme of plays.", lat:42.3505,   lng:13.3940,   has360:false},
+  {id:21, name:"Chiesa di San Marciano",             type:"Chiesa • XIII sec.",                typeEn:"Church • XIII c.",                    desc:"Piccola chiesa medievale nel centro storico, legata al culto del quartiere San Marciano, uno dei castelli fondatori.", descEn:"Small medieval church in the historic centre, linked to the San Marciano quarter, one of the founding castles.", lat:42.3515,   lng:13.3972,   has360:false},
+  {id:22, name:"Chiesa di San Pietro a Coppito",     type:"Chiesa • XIII sec.",                typeEn:"Church • XIII c.",                    desc:"Elegante chiesa medievale con facciata romanica e importanti testimonianze artistiche del centro storico aquilano.", descEn:"Elegant medieval church with a Romanesque façade and important artistic works of L'Aquila's historic centre.", lat:42.3522,   lng:13.3995,   has360:false},
+  {id:23, name:"Auditorium del Parco",               type:"Auditorium • 2012",                 typeEn:"Auditorium • 2012",                   desc:"Progettato da Renzo Piano come dono di Milano a L'Aquila dopo il sisma del 2009. Tre 'scatole' di legno da 200 posti ciascuna.", descEn:"Designed by Renzo Piano as a gift from Milan to L'Aquila after the 2009 earthquake. Three wooden 'boxes' of 200 seats each.", lat:42.3508,   lng:13.3928,   has360:false},
+  {id:24, name:"Palazzo Carli Benedetti",            type:"Palazzo storico • XVIII sec.",      typeEn:"Historic Palace • XVIII c.",          desc:"Elegante palazzo nobiliare del Settecento, esempio dello stile barocco aquilano post-terremoto del 1703.", descEn:"Elegant 18th-century noble palace, an example of L'Aquila's Baroque style following the 1703 earthquake.", lat:42.3497,   lng:13.3987,   has360:false},
+  {id:25, name:"Piazza Regina Margherita",           type:"Piazza • Palazzo Margherita",       typeEn:"Square • Palazzo Margherita",         desc:"Elegante piazza con il Palazzo Margherita, ex sede della Prefettura. Centro della vita istituzionale della città.", descEn:"Elegant square featuring Palazzo Margherita, former seat of the Prefecture. Centre of the city's institutional life.", lat:42.3503,   lng:13.3993,   has360:false},
+  {id:26, name:"Palazzetto dei Nobili",              type:"Palazzo storico • XVII sec.",        typeEn:"Historic Palace • XVII c.",           desc:"Palazzo della Congregazione dei Nobili nel centro topografico esatto della città, in Piazza Santa Margherita. Oggi spazio espositivo pubblico del Comune.", descEn:"Palace of the Congregation of Nobles at the exact topographical centre of the city, in Piazza Santa Margherita. Today a public exhibition space of the Municipality.", lat:42.3490,   lng:13.3975,   has360:false},
+  {id:27, name:"L'Emiciclo",                         type:"Palazzo istituzionale • XIX sec.",  typeEn:"Institutional Palace • XIX c.",       desc:"Sede del Consiglio Regionale d'Abruzzo. Il nome deriva dalla caratteristica forma a emiciclo della facciata neoclassica.", descEn:"Seat of the Abruzzo Regional Council. Its name comes from the semicircular shape of its neoclassical façade.", lat:42.3525,   lng:13.4008,   has360:false},
+  {id:28, name:"Porta Bazzano",                      type:"Porta medievale • XIV sec.",        typeEn:"Medieval Gate • XIV c.",              desc:"Una delle antiche porte di accesso alla città medievale, che prendeva il nome dal vicino castello di Bazzano.", descEn:"One of the ancient gateways to the medieval city, named after the nearby castle of Bazzano.", lat:42.3468,   lng:13.3985,   has360:false},
+  {id:29, name:"Porta Napoli",                       type:"Porta medievale • XIV sec.",        typeEn:"Medieval Gate • XIV c.",              desc:"Porta di accesso al centro storico verso sud, sulla via che conduceva a Napoli. Testimonianza dell'antico sistema difensivo.", descEn:"Southern gateway to the historic centre, on the road to Naples. A testimony of the ancient defensive system.", lat:42.3545,   lng:13.3978,   has360:false},
+  {id:30, name:"Palazzo Dragonetti",                 type:"Palazzo nobiliare • XVIII sec.",    typeEn:"Noble Palace • XVIII c.",             desc:"Importante palazzo nobiliare settecentesco, un tempo residenza di una delle famiglie più influenti della città.", descEn:"Important 18th-century noble palace, once the residence of one of the city's most influential families.", lat:42.3500,   lng:13.3968,   has360:false},
+  {id:31, name:"Palazzo Camponeschi",                type:"Palazzo medievale • XV sec.",       typeEn:"Medieval Palace • XV c.",             desc:"Antico palazzo della potente famiglia Camponeschi, una delle più importanti della storia medievale aquilana.", descEn:"Ancient palace of the powerful Camponeschi family, one of the most important in L'Aquila's medieval history.", lat:42.3486,   lng:13.3977,   has360:false},
+  {id:32, name:"Palazzo Pica Alfieri",               type:"Palazzo nobiliare",                 typeEn:"Noble Palace",                        desc:"Palazzo storico nel centro di L'Aquila, appartenuto alla famiglia Pica Alfieri, con eleganti elementi architettonici d'epoca.", descEn:"Historic palace in the centre of L'Aquila, once belonging to the Pica Alfieri family, with elegant period architectural elements.", lat:42.3493,   lng:13.3983,   has360:false},
+  {id:33, name:"Parco della Memoria",                type:"Memoriale • Piazzale Paoli",        typeEn:"Memorial Park • Piazzale Paoli",      desc:"Parco commemorativo dedicato alle vittime del terremoto del 6 aprile 2009. Luogo di raccoglimento e memoria collettiva.", descEn:"Memorial park dedicated to the victims of the April 6, 2009 earthquake. A place of reflection and collective memory.", lat:42.3478,   lng:13.4055,   has360:false},
+  {id:34, name:"Ponte Belvedere",                    type:"Ponte panoramico",                  typeEn:"Scenic Bridge",                       desc:"Ponte con vista panoramica sulla valle e sui monti del Gran Sasso. Punto privilegiato per osservare il paesaggio aquilano.", descEn:"Bridge with panoramic views over the valley and the Gran Sasso mountains. A privileged vantage point over the L'Aquila landscape.", lat:42.3555,   lng:13.4038,   has360:false},
+  {id:35, name:"Palazzo Margherita",                 type:"Palazzo storico • XIV sec.",         typeEn:"Historic Palace • XIV c.",            desc:"Sede del Comune e simbolo del potere civico, fu la dimora di Margherita d'Austria nel Cinquecento.", descEn:"Home of the Municipality and symbol of civic power, it was the residence of Margaret of Austria in the 16th century.", lat:42.35119,  lng:13.39965,  has360:false},
+  {id:36, name:"Fontane Gemelle di Piazza Duomo",    type:"Fontane monumentali • 1904",        typeEn:"Monumental Fountains • 1904",         desc:"Le due fontane neoclassiche alle estremità di Piazza Duomo, opera dello scultore Nicola D'Antino, simbolo della vita civica aquilana.", descEn:"The two neoclassical fountains at the ends of Piazza Duomo, by sculptor Nicola D'Antino, symbol of L'Aquila's civic life.", lat:42.35075,  lng:13.39942,  has360:false},
+  {id:37, name:"Portici di San Bernardino",          type:"Portici neoclassici • XIX sec.",    typeEn:"Neoclassical Porticoes • XIX c.",      desc:"Il suggestivo corridoio porticato che collega via Vittorio Veneto alla Basilica di San Bernardino, cuore storico del commercio cittadino.", descEn:"The evocative porticoed corridor linking Via Vittorio Veneto to the Basilica of San Bernardino, historic heart of the city's commerce.", lat:42.35285,  lng:13.39730,  has360:false}
+];
+
+const MONUMENT_INFO = {
+  1: {it:["La <strong>Fontana delle 99 Cannelle</strong> è il monumento più noto della città. Realizzata nel <strong>1274</strong> dall'architetto <strong>Tancredi da Pentima</strong>, fu il primo monumento restaurato dopo il sisma.", "Originariamente lavatoio pubblico, fu edificata nella zona bassa della città in prossimità del fiume Aterno, nel <strong>Borgo Rivera</strong>. L'impianto ha <strong>forma trapezoidale</strong>.", "Il nome deriva dai getti d'acqua che partono da mascheroni lapidei, tutti diversi. <strong>93 cannelle</strong> con maschere, fiori e rosoni simboleggiano il ciclo della vita. <strong>6 cannelle semplici</strong> rappresentano le <strong>piaghe di Cristo</strong>.", "Il 99 è un <strong>numero simbolico e misterioso</strong> nella cultura aquilana. Il rivestimento a <strong>scacchiera in pietra bianca e rosa</strong> risale al <strong>1400</strong>."],en:["The <strong>Fountain of the 99 Spouts</strong> is the most famous monument in L'Aquila. Built in <strong>1274</strong> by architect <strong>Tancredi da Pentima</strong>, it was the first monument restored after the earthquake.", "Originally a public washhouse, built in the lower part of the city near the Aterno River, known as <strong>Borgo Rivera</strong>. The fountain has a <strong>trapezoidal shape</strong>.", "The name comes from the water jets issuing from stone masks, each unique. <strong>93 spouts</strong> with masks, flowers, and rosettes symbolize the cycle of life. <strong>6 plain spouts</strong> represent the <strong>wounds of Christ</strong>.", "99 is a <strong>symbolic and mysterious number</strong> in L'Aquila culture. The cladding in <strong>checkerboard white and pink stone</strong> dates back to the <strong>1400s</strong>."]},
+  2: {it:["La <strong>Basilica di Santa Maria di Collemaggio</strong> è il gioiello architettonico dell'Aquila, legato indissolubilmente a Pietro Angelerio da Morrone, noto come <strong>Celestino V</strong>.", "Fu lui a volere la Basilica e a ricevervi le insegne papali nel <strong>1294</strong>. Lasciò un'eredità rivoluzionaria: la <strong>Bolla del Perdono</strong>, che istituì la <strong>Perdonanza Celestiniana</strong>, il primo Giubileo della storia.", "L'indulgenza plenaria era concessa a chiunque entrasse nella Basilica pentito tra i vespri del 28 e del 29 agosto. Dal <strong>2019</strong> è iscritta <strong>dall'UNESCO nel Patrimonio Immateriale dell'Umanità</strong>.", "Dopo i danni del sisma del <strong>2009</strong>, un restauro integrale finanziato dall'Eni ha portato alla riapertura il <strong>20 dicembre 2017</strong>. Nel 2020 ha ricevuto il prestigioso <strong>European Heritage Award</strong>."],en:["The <strong>Basilica of Santa Maria di Collemaggio</strong> is L'Aquila's architectural jewel, inextricably linked to Pietro Angelerio da Morrone, known as <strong>Celestine V</strong>.", "He commissioned the Basilica and received the papal insignia there in <strong>1294</strong>. He left a revolutionary legacy: the <strong>Papal Bull of Pardon</strong>, establishing the <strong>Celestinian Pardon</strong>, the first Jubilee in history.", "Plenary indulgence was granted to anyone who entered the Basilica with repentance between Vespers on August 28th and 29th. Since <strong>2019</strong> it has been inscribed <strong>by UNESCO as Intangible Heritage of Humanity</strong>.", "After the <strong>2009</strong> earthquake damage, a comprehensive restoration funded by Eni led to reopening on <strong>December 20, 2017</strong>. In 2020 it received the prestigious <strong>European Heritage Award</strong>."]},
+  3: {it:["Il <strong>Museo Nazionale d'Abruzzo (MuNDA)</strong> fu inaugurato il <strong>23 settembre 1951</strong> all'interno del Castello Cinquecentesco, grazie alla volontà delle autorità locali che impedirono la sua trasformazione in carcere.", "Il simbolo del museo è il celebre <strong>Mammut</strong>: uno degli scheletri di <em>Mammuthus meridionalis</em> più completi d'Europa, scoperto nel 1954 a Scoppito. Il fossile risale a circa <strong>1,3 milioni di anni fa</strong>.", "Dopo i danni del <strong>2009</strong> il museo ha operato nell'ex Mattatoio a Borgo Rivera. Il <strong>19 dicembre 2025</strong> le collezioni e il Mammut sono tornati nelle sale restaurate del Castello.", "<strong>Orari:</strong> tutti i giorni 9:00-19:00 (ultimo ingresso 18:00). <strong>Biglietti:</strong> Intero 10 euro, Ridotto 18-25 anni 2 euro, Gruppi 8 euro, Under 18 gratuito. Prima domenica del mese ingresso gratuito per tutti."],en:["The <strong>National Museum of Abruzzo (MuNDA)</strong> was inaugurated on <strong>September 23, 1951</strong> inside the 16th-century Castle, thanks to local authorities who prevented it from being turned into a prison.", "The museum's symbol is the famous <strong>Mammoth</strong>: one of the most complete <em>Mammuthus meridionalis</em> skeletons in Europe, discovered in 1954 in Scoppito. The fossil dates back approximately <strong>1.3 million years</strong>.", "After the <strong>2009</strong> earthquake the museum operated in the former slaughterhouse in Borgo Rivera. On <strong>December 19, 2025</strong> the collections and the Mammoth returned to the restored halls of the Castle.", "<strong>Opening hours:</strong> every day 9:00 AM-7:00 PM (last admission 6:00 PM). <strong>Tickets:</strong> Full 10 euros, Reduced 18-25 years 2 euros, Groups 8 euros, Under 18 free. First Sunday of the month free admission for everyone."]},
+  4: {it:["La <strong>Basilica di San Bernardino</strong> fu costruita a partire dal <strong>1454</strong> dopo la bolla di <strong>papa Nicolo V</strong>, per onorare il Santo senese morto in citta nel <strong>1444</strong>.", "Il cantiere fu diviso in due: lato destro affidato a <strong>maestranze lombarde</strong>, sinistro a maestri da <strong>Cava dei Tirreni</strong>. La majestuosa <strong>facciata rinascimentale</strong> fu progettata da <strong>Cola dell'Amatrice</strong>.", "Il <strong>terremoto del 1703</strong> causo il crollo della cupola. La ricostruzione sovrappose una <strong>fodera barocca</strong> coordinata dall'architetto <strong>Giovan Battista Contini</strong>. Ancora oggi si scorgono le antiche colonne ottagonali nei pilastri attuali.", "<strong>Ingresso gratuito.</strong> Orari: feriali 7:00-19:00, domenica dalle 8:30. Visite sospese durante le Sante Messe (generalmente 8:30, 11:30 e 18:30 nei festivi)."],en:["The <strong>Basilica of San Bernardino</strong> was built from <strong>1454</strong> following the bull of <strong>Pope Nicholas V</strong>, to honor the Sienese saint who died in the city in <strong>1444</strong>.", "The site was split in two: right side entrusted to <strong>Lombard craftsmen</strong>, left to masters from <strong>Cava dei Tirreni</strong>. The majestic <strong>Renaissance facade</strong> was designed by <strong>Cola dell'Amatrice</strong>.", "The <strong>1703 earthquake</strong> caused the dome to collapse. Reconstruction superimposed a <strong>Baroque lining</strong> coordinated by architect <strong>Giovan Battista Contini</strong>. The ancient octagonal columns are still visible inside the current pillars.", "<strong>Free admission.</strong> Opening hours: weekdays 7:00 AM-7:00 PM, Sundays from 8:30 AM. Visits suspended during Holy Mass (generally 8:30 AM, 11:30 AM and 6:30 PM on holidays)."]},
+  5: {it:["<strong>Piazza Duomo</strong> e il cuore pulsante di L'Aquila. Dal Trecento ospitava il <strong>mercato giornaliero</strong>, svolto qui ininterrottamente fino all'aprile del 2009.", "Sulla piazza si affacciano la <strong>Cattedrale dei Santi Massimo e Giorgio</strong> (il Duomo) e la <strong>Chiesa di Santa Maria del Suffragio</strong> (Anime Sante).", "Le celebri <strong>Fontane Vecchie</strong>, due fontane gemelle alle estremita della piazza, risalgono al Trecento. Lo scultore <strong>Nicola D'Antino</strong> le arricchi negli anni 30 con figure maschili in bronzo.", "Di giorno e animata da cittadini e turisti; di sera diventa un importante punto di ritrovo grazie ai locali e all'atmosfera conviviale."],en:["<strong>Piazza Duomo</strong> is the beating heart of L'Aquila. Since the 14th century it hosted the <strong>daily market</strong>, held here continuously until April 2009.", "The square is flanked by the <strong>Cathedral of Saints Maximus and Giorgio</strong> (the Duomo) and the <strong>Church of Santa Maria del Suffragio</strong> (Anime Sante).", "The famous <strong>Fontane Vecchie</strong>, twin fountains at the ends of the square, date back to the 14th century. Sculptor <strong>Nicola D'Antino</strong> enriched them in the 1930s with bronze male figures.", "During the day it is bustling with residents and tourists; in the evening it becomes an important gathering place thanks to its bars and convivial atmosphere."]},
+  6: {it:["La <strong>Chiesa di Santa Maria del Suffragio</strong>, nota come le <strong>Anime Sante</strong>, sorge nel cuore dell'Aquila come simbolo di rinascita dopo il terremoto del <strong>1703</strong>. Costruita dal <strong>1713</strong>, la facciata barocca concava fu disegnata da <strong>Gianfrancesco Leomporra</strong>.", "La celebre cupola fu completata nel 1805 su ispirazione di <strong>Giuseppe Valadier</strong>. Dopo il crollo nel sisma del <strong>2009</strong>, un restauro esemplare finanziato anche dalla <strong>Francia</strong> ha permesso la riapertura nel <strong>2018</strong>.", "All'interno custodisce le tele del maestro <strong>Teofilo Patini</strong> e un monumentale organo a canne. La <strong>Cappella della Memoria</strong> ricorda le vittime del 2009, legando l'antico culto dei defunti alla storia recente.", "<strong>Ingresso gratuito.</strong> Orari: 9:00-18:00 nei giorni feriali e fino alle 20:00 nei festivi. Visite sospese durante le funzioni religiose."],en:["The <strong>Church of Santa Maria del Suffragio</strong>, known as the <strong>Anime Sante</strong>, stands in the heart of L'Aquila as a symbol of rebirth after the <strong>1703</strong> earthquake. Built from <strong>1713</strong>, the concave Baroque facade was designed by <strong>Gianfrancesco Leomporra</strong>.", "The famous dome was completed in 1805 inspired by <strong>Giuseppe Valadier</strong>. After its collapse in the <strong>2009</strong> earthquake, an exemplary restoration also funded by <strong>France</strong> allowed it to reopen in <strong>2018</strong>.", "Inside it houses paintings by master <strong>Teofilo Patini</strong> and a monumental pipe organ. The <strong>Chapel of Remembrance</strong> commemorates the 2009 victims, linking the ancient cult of the deceased to recent history.", "<strong>Free admission.</strong> Opening hours: 9:00 AM-6:00 PM on weekdays and until 8:00 PM on holidays. Visits suspended during religious services."]},
+  7: {it:["La <strong>Fontana Luminosa</strong> e il risultato di una visione urbanistica che unisce la modernita del Novecento alle radici dell'Abruzzo. Le due donne ritratte da <strong>Nicola D'Antino</strong> rappresentano la forza della popolazione locale e il legame con l'acqua.", "E dotata di un sofisticato sistema di illuminazione che trasforma l'acqua in un gioco di colori durante festivity ed eventi: Tricolore nelle feste istituzionali, rosa per il Giro d'Italia, tinte simboliche per campagne sociali.", "Sopravvissuta alla Seconda Guerra Mondiale e al <strong>terremoto del 2009</strong>, dopo un restauro terminato nel <strong>2016</strong> e tornata a risplendere come primo segno di rinascita per chi entra nel centro storico.", "La fontana e posizionata su un preciso asse ottico: dal Corso, le figure bronzee sembrano stagliarsi contro le vette del <strong>Gran Sasso</strong>."],en:["The <strong>Fontana Luminosa</strong> is the result of an urban vision uniting 20th-century modernity with Abruzzo's roots. The two women sculpted by <strong>Nicola D'Antino</strong> represent the strength of the local population and their bond with water.", "It features a sophisticated lighting system that transforms the water into vibrant colors during holidays and events: the Italian flag for national celebrations, pink for the Giro d'Italia, symbolic colors for social campaigns.", "Having survived World War II and the <strong>2009 earthquake</strong>, after a restoration completed in <strong>2016</strong> it shines again as the first sign of rebirth for anyone entering the historic center.", "The fountain is positioned on a precise optical axis: from the Corso, the bronze figures seem to stand against the peaks of the <strong>Gran Sasso</strong>."]},
+  11: {it:["<strong>Palazzo Ardinghelli</strong> fu progettato tra il 1732 e il 1743 dall'architetto romano <strong>Francesco Fontana</strong>. Il cortile interno ospita uno <strong>scalone monumentale</strong> di derivazione borrominiana affrescato dal veneziano <strong>Vincenzo Damini</strong> nel 1744.", "Il <strong>sisma del 2009</strong> ha fortemente danneggiato l'edificio, oggetto di un accurato restauro conservativo a cura del MiBACT grazie a un <strong>finanziamento del governo russo</strong>.", "Oggi e un <strong>centro culturale vivo</strong> che ospita mostre temporanee, progetti site-specific e una selezione della <strong>collezione permanente del MAXXI</strong>.", "<strong>Orari:</strong> Giovedi 9:00-13:00, Venerdi-Domenica 11:00-19:00, Lunedi-Mercoledi chiuso. Ingresso con biglietto, sconti per giovani e residenti in Abruzzo."],en:["<strong>Palazzo Ardinghelli</strong> was designed between 1732 and 1743 by Roman architect <strong>Francesco Fontana</strong>. The internal courtyard features a <strong>monumental staircase</strong> inspired by Borromini, frescoed by the Venetian <strong>Vincenzo Damini</strong> in 1744.", "The <strong>2009 earthquake</strong> severely damaged the building, which underwent meticulous conservative restoration by MiBACT with <strong>Russian government funding</strong>.", "Today it is a <strong>living cultural center</strong> hosting temporary exhibitions, site-specific projects, and a selection of the <strong>MAXXI permanent contemporary art collection</strong>.", "<strong>Opening hours:</strong> Thursday 9:00 AM-1:00 PM, Friday-Sunday 11:00 AM-7:00 PM, Monday-Wednesday closed. Admission with ticket, discounts for young people and Abruzzo residents."]},
+  12: {it:["Il <strong>Teatro San Filippo</strong> ha radici nella <strong>meta del Seicento</strong>, quando sorse come chiesa per volere dei <strong>Padri Filippini</strong>, concepita secondo i canoni del barocco romano.", "Diciassette anni dopo il <strong>sisma del 2009</strong>, il teatro riemerge come simbolo della <strong>resilienza</strong> di L'Aquila e apripista delle celebrazioni dell'<strong>Aquila Capitale Italiana della Cultura 2026</strong>.", "Ha ospitato l'inaugurazione di <strong>CostellAzioni</strong>, festival diffuso che connette il centro storico con le periferie attraverso musica, sport e teatro.", "Non e aperto per visite libere: <strong>accessibile solo durante gli spettacoli</strong>. Gran parte delle iniziative del festival e gratuita, con <strong>prenotazione obbligatoria</strong> tramite le piattaforme digitali ufficiali."],en:["The <strong>Teatro San Filippo</strong> has its roots in the <strong>mid-17th century</strong>, when it was built as a church by the <strong>Philippine Fathers</strong>, conceived in the Baroque Roman style.", "Seventeen years after the <strong>2009 earthquake</strong>, the theater reemerges as a symbol of L'Aquila's <strong>resilience</strong> and as a precursor to the celebrations for <strong>L'Aquila, Italian Capital of Culture 2026</strong>.", "It hosted the inauguration of <strong>CostellAzioni</strong>, a widespread festival connecting the historic center with the suburbs through music, sports, and theater.", "Not open for free visits: <strong>accessible only during scheduled events</strong>. Most festival initiatives are free, with <strong>mandatory reservation</strong> through official digital platforms."]},
+  13: {it:["La <strong>Chiesa di Santa Giusta</strong> e uno degli edifici religiosi piu antichi dell'Aquila. Fondata nel <strong>1254</strong> dagli abitanti del castello di <strong>Bazzano</strong>, nel 1902 fu dichiarata <strong>monumento nazionale</strong>.", "La facciata ospita uno dei <strong>rosoni</strong> piu spettacolari della citta, reso unico da dodici figure umane chiamate <strong>telamoni</strong>. L'interno custodisce il <strong>coro in legno</strong> dell'abside, il piu antico d'Abruzzo.", "Il terremoto del <strong>2009</strong> ha reso la chiesa inagibile causando gravi crolli nella parte presbiteriale. La piazza antistante permette comunque di ammirare la splendida facciata.", "La chiesa e attualmente <strong>chiusa al pubblico</strong> per i lavori di restauro. Vengono organizzate <strong>aperture straordinarie</strong> in occasione delle Giornate FAI ed eventi culturali, quasi sempre con guide specializzate."],en:["The <strong>Church of Santa Giusta</strong> is one of L'Aquila's oldest religious buildings. Founded in <strong>1254</strong> by the inhabitants of <strong>Bazzano</strong> Castle, it was declared a <strong>national monument</strong> in 1902.", "The facade features one of the city's most spectacular <strong>rose windows</strong>, made unique by twelve human figures called <strong>telamons</strong>. The interior preserves the <strong>wooden choir</strong> in the apse, the oldest in Abruzzo.", "The <strong>2009</strong> earthquake rendered the church unusable, causing serious collapses in the presbytery. The square in front still allows visitors to admire the splendid facade.", "The church is currently <strong>closed to the public</strong> for restoration works. <strong>Special openings</strong> are organized during FAI Days and cultural events, almost always with specialized guides."]},
+  14: {it:["La <strong>Chiesa di Santa Maria Paganica</strong> sorge nel <strong>punto piu elevato</strong> del centro storico. La fondazione risale al XIII secolo per mano dei castellani di Paganica, partecipanti alla nascita della citta.", "La facciata e uno dei massimi esempi di <strong>romanico aquilano</strong>. Il <strong>portale monumentale</strong> del 1308 presenta busti del Redentore e degli Apostoli. La <strong>torre campanaria</strong> fu mozzata nel 1557 per ordine delle autorita spagnole.", "Il <strong>sisma del 2009</strong> ha causato il parziale sventramento e il crollo quasi totale della copertura e della cupola.", "Al 2026 e uno dei <strong>cantieri di restauro</strong> piu imponenti della ricostruzione aquilana, protetta da complesse impalcature metalliche. La piazza ha ripreso il suo ruolo di baricentro sociale e culturale."],en:["The <strong>Church of Santa Maria Paganica</strong> rises at the <strong>highest point of the historic center</strong>. Its foundation dates to the 13th century by the lords of Paganica, participants in the city's founding.", "The facade is one of the finest examples of <strong>L'Aquila Romanesque</strong> architecture. The <strong>monumental portal</strong> of 1308 features busts of the Redeemer and the Apostles. The <strong>bell tower</strong> was cut down in 1557 by order of the Spanish authorities.", "The <strong>2009 earthquake</strong> caused the partial demolition and almost complete collapse of the roof and dome.", "As of 2026 it is one of the most impressive <strong>restoration projects</strong> in L'Aquila's reconstruction, protected by complex metal scaffolding. The square has regained its role as a social and cultural hub."]},
+  15: {it:["Nel cuore dell'Aquila, <strong>Le Cancelle</strong> erano un complesso medievale di <strong>case-botteghe del pesce</strong> nella parte sud-ovest della Piazza del Mercato. L'edificio risale al <strong>XV secolo</strong>.", "Al piano terra c'erano le botteghe (pesce e carne) con il davanzale in pietra dell'arco come bancone. Al piano superiore vivevano i mercanti. Dopo un attento restauro e tornato a splendere.", "Oggi parte del complesso e una <strong>Residenza d'Epoca</strong> (hotel di charme) che permette di dormire nelle mura storiche.", "<strong>Esterno:</strong> La facciata medievale con gli iconici archi e sempre visibile e gratuita. <strong>Welcome AQ (interno):</strong> martedi-domenica 9:00-18:00, lunedi chiuso. A soli <strong>20 mt dalla Piazza del Duomo</strong>."],en:["In the heart of L'Aquila, <strong>Le Cancelle</strong> were a medieval complex of <strong>fishmonger shops</strong> in the southwest corner of the Piazza del Mercato. The building dates to the <strong>15th century</strong>.", "The ground floor had shops (fish and meat) with the stone sill of the arch as a counter. The upper floor was home to the merchants. After careful restoration it has returned to its former glory.", "Today part of the complex is a <strong>Residenza d'Epoca</strong> (charming hotel) offering accommodation within historic walls.", "<strong>Exterior:</strong> The medieval facade with iconic arches is always visible and free. <strong>Welcome AQ (interior):</strong> Tuesday-Sunday 9:00 AM-6:00 PM, Monday closed. Just <strong>20 meters from Piazza del Duomo</strong>."]},
+  16: {it:["La <strong>Torre Civica</strong> e l'unica parte superstite del trecentesco Palazzo del Capitano. Gia presente nel 1254, fu innalzata nel <strong>1310</strong> e nel <strong>1374</strong> ospito uno dei <strong>primi orologi pubblici d'Italia</strong>.", "La facciata conserva il primo stemma cittadino con l'aquila sveva, gli stemmi di <strong>Carlo V</strong>, l'effigie di <strong>Garibaldi</strong> e l'orologio ottocentesco. Una campana moderna mantiene la tradizione dei <strong>99 rintocchi</strong> al tramonto.", "Nella parte inferiore si trova la cappella della Madonna degli Angeli, custode della <strong>Bolla del Perdono</strong> di Celestino V, estratta ogni <strong>28 agosto</strong>.", "Dopo la ricostruzione completata nel <strong>2024</strong> e regolarmente fruibile. <strong>Orari:</strong> 9:30-13:00 e 15:30-18:30. Ingresso con biglietto. <strong>Prenotazione raccomandata</strong>, specialmente durante la Perdonanza (23-29 agosto)."],en:["The <strong>Civic Tower</strong> is the only surviving part of the 14th-century Palazzo del Capitano. Already present in 1254, it was erected in <strong>1310</strong> and in <strong>1374</strong> housed one of <strong>Italy's first public clocks</strong>.", "The facade preserves the first city coat of arms with the Swabian eagle, coats of arms of <strong>Charles V</strong>, the effigy of <strong>Garibaldi</strong>, and the 19th-century clock. A modern bell keeps alive the tradition of the <strong>99 chimes</strong> at sunset.", "At the base is the chapel of the Madonna degli Angeli, custodian of the <strong>Bull of Forgiveness</strong> of Celestine V, extracted every <strong>August 28th</strong>.", "After reconstruction completed in <strong>2024</strong> it is regularly accessible. <strong>Opening hours:</strong> 9:30 AM-1:00 PM and 3:30-6:30 PM. Admission with ticket. <strong>Reservation recommended</strong>, especially during the Perdonanza (August 23-29)."]},
+  17: {it:["La <strong>Chiesa di San Silvestro</strong> fu costruita intorno al <strong>1350</strong> per volontà degli abitanti del castello di <strong>Collebrincioni</strong>. La facciata in pietra bianca e rosata e dominata da un grande <strong>rosone a raggiera</strong> e da un portale romanico.", "L'interno ospita la celebre <strong>Cappella Branconio</strong>, un tempo scrigno della <em>Visitazione</em> di Raffaello Sanzio (portata in Spagna nel XVII sec.). Conserva un ciclo di <strong>affreschi trecenteschi</strong> nell'abside di importanza capitale per la storia dell'arte.", "Dopo i danni del terremoto del 2009, il meticoloso restauro ha restituito la chiesa alla citta nel <strong>2019</strong> in condizioni splendide.", "<strong>Ingresso gratuito.</strong> Orari: 9:30-12:30 e 15:30-18:30. L'accesso puo essere limitato durante le messe, specialmente la domenica."],en:["The <strong>Church of San Silvestro</strong> was built around <strong>1350</strong> by the inhabitants of <strong>Collebrincioni Castle</strong>. The white and pink stone facade is dominated by a large sunburst <strong>rose window</strong> and a Romanesque portal.", "The interior houses the famous <strong>Branconio Chapel</strong>, once home to Raphael's <em>Visitation</em> (taken to Spain in the 17th century). It preserves a cycle of <strong>14th-century frescoes</strong> in the apse of crucial importance for art history.", "After the 2009 earthquake damage, meticulous restoration returned the church to the city in <strong>2019</strong> in splendid condition.", "<strong>Free admission.</strong> Opening hours: 9:30 AM-12:30 PM and 3:30-6:30 PM. Access may be limited during Mass, especially on Sundays."]},
+  19: {it:["<strong>L'Aquila Sotterranea</strong> e un viaggio nel tempo sotto il centro storico, che rivela una citta parallela di <strong>stratificazioni secolari</strong>: cisterne per l'acqua, neviere usate come antichi frigoriferi e cantine monumentali.", "Tra le tappe principali il <strong>Forte Spagnolo</strong> con le gallerie di contromina cinquecentesche, <strong>Palazzo Cipolloni Cannella</strong>, <strong>Palazzo Nardis</strong> e gli ipogei della <strong>Chiesa di San Domenico</strong>.", "Non e possibile accedere in autonomia: l'accesso e esclusivamente tramite <strong>visite guidate</strong> organizzate da <strong>Welcome AQ</strong>, programmate in date specifiche nei fine settimana o durante eventi cittadini.", "<strong>Biglietto:</strong> circa 12 euro (include guida e assicurazione). <strong>Prenotazione obbligatoria</strong>: contattare l'infopoint turistico o i canali social de L'Aquila Sotterranea."],en:["<strong>L'Aquila Sotterranea</strong> is a journey through time beneath the historic center, revealing a parallel city of <strong>centuries-old layers</strong>: water cisterns, iceboxes used as ancient refrigerators, and monumental cellars.", "Key stops include the <strong>Spanish Fort</strong> with its 16th-century countermine tunnels, <strong>Palazzo Cipolloni Cannella</strong>, <strong>Palazzo Nardis</strong>, and the hypogea of the <strong>Church of San Domenico</strong>.", "Independent access is not possible: access is exclusively through <strong>guided tours</strong> organized by <strong>Welcome AQ</strong>, scheduled on specific dates on weekends or during city events.", "<strong>Ticket:</strong> approximately 12 euros (includes guide and insurance). <strong>Mandatory reservation</strong>: contact the tourist information office or L'Aquila Sotterranea social media channels."]},
+  20: {it:["Il <strong>Teatro Stabile d'Abruzzo</strong> nasce nel <strong>1963</strong> a L'Aquila con la doppia missione di produrre spettacoli di qualita e formare un pubblico locale stabile.", "Negli anni '90 assume vocazione regionale come <em>Teatro Stabile Abruzzese</em>. Nel <strong>2000</strong> prende la denominazione attuale. La sede storica e il <strong>Teatro Comunale dell'Aquila</strong>, vicino a via Verdi.", "Il terremoto del <strong>2009</strong> ha gravemente danneggiato il Teatro Comunale, ma il Teatro Stabile ha continuato la propria attivita in sedi alternative come il Ridotto.", "Non e visitabile liberamente: si entra <strong>solo durante spettacoli o eventi</strong>. <strong>Biglietti:</strong> circa 10-28 euro. <strong>Botteghino:</strong> lunedi-venerdi 10:00-17:00 e prima degli spettacoli."],en:["The <strong>Teatro Stabile d'Abruzzo</strong> was founded in <strong>1963</strong> in L'Aquila with the dual mission of producing quality performances and developing a stable local audience.", "In the 1990s it adopted a regional vocation as <em>Teatro Stabile Abruzzese</em>. In <strong>2000</strong> it took on its current name. Its historical home is the <strong>Teatro Comunale dell'Aquila</strong>, near Via Verdi.", "The <strong>2009</strong> earthquake severely damaged the Teatro Comunale, but the Teatro Stabile continued in alternative venues such as the Ridotto.", "Not open for free visits: entry <strong>only during performances or events</strong>. <strong>Tickets:</strong> approximately 10-28 euros. <strong>Box office:</strong> Monday-Friday 10:00 AM-5:00 PM and before performances."]},
+  21: {it:["La <strong>Chiesa di San Marciano</strong> e legata indissolubilmente alla fondazione della citta. Risale al <strong>XIII secolo</strong>, quando gli abitanti del castello di Roio innalzarono questo tempio nel <strong>quarto di San Giovanni</strong>.", "La struttura originaria medievale fu quasi completamente distrutta dal <strong>sisma del 1703</strong> e ricostruita in stile barocco settecentesco. Questa stratificazione rende San Marciano un esempio unico di resilienza architettonica.", "Dopo il terremoto del <strong>2009</strong> ha subito lunghi lavori di consolidamento e restauro che hanno permesso di restituire alla citta uno dei suoi monumenti piu amati.", "<strong>Ingresso gratuito.</strong> Orari: mattina 8:30-12:30, pomeriggio 16:30-19:00."],en:["The <strong>Church of San Marciano</strong> is inextricably linked to the city's founding. It dates to the <strong>13th century</strong>, when the inhabitants of Roio Castle erected this temple <strong>in the San Giovanni district</strong>.", "The original medieval structure was almost completely destroyed by the <strong>1703 earthquake</strong> and rebuilt in 18th-century Baroque style. This layering makes San Marciano a unique example of architectural resilience.", "After the <strong>2009</strong> earthquake it underwent long consolidation and restoration works, returning one of the city's most beloved monuments.", "<strong>Free admission.</strong> Opening hours: morning 8:30 AM-12:30 PM, afternoon 4:30-7:00 PM."]},
+  22: {it:["La <strong>Chiesa di San Pietro a Coppito</strong> e uno dei pilastri fondamentali della fondazione dell'Aquila. Edificata nel <strong>XIII secolo</strong> dagli abitanti del castello di Coppito, divenne il cuore del <strong>Quarto di San Pietro</strong>.", "Era un trionfo del <strong>romanico abruzzese</strong>: facciata maestosa e imponente campanile. Lo splendido <strong>portale principale</strong> decorato e una delle massime espressioni dell'arte lapidea locale. All'interno vi sono resti di <strong>affreschi trecenteschi e quattrocenteschi</strong>.", "Camminare lungo la fiancata sinistra, con la suggestiva <strong>loggetta esterna</strong>, permette di percepire la continuita storica di un quartiere che non ha mai smesso di identificarsi nel suo tempio.", "<strong>Ingresso gratuito.</strong> Orari: mattina 9:00-12:30, pomeriggio 16:00-19:00 (possibili variazioni in base alle attivita parrocchiali)."],en:["The <strong>Church of San Pietro a Coppito</strong> is one of the fundamental pillars of L'Aquila's foundation. Built in the <strong>13th century</strong> by the inhabitants of Coppito Castle, it became the heart of the <strong>Quarto di San Pietro</strong>.", "It was a triumph of <strong>Abruzzese Romanesque</strong> style: a majestic facade and imposing bell tower. The splendid decorated <strong>main portal</strong> is one of the finest examples of local stone art. Inside are remains of <strong>14th- and 15th-century frescoes</strong>.", "Walking along the left side, with its charming <strong>external loggia</strong>, allows one to perceive the historical continuity of a neighborhood that never stopped identifying with its main temple.", "<strong>Free admission.</strong> Opening hours: morning 9:00 AM-12:30 PM, afternoon 4:00-7:00 PM (may vary depending on parish activities)."]},
+  27: {it:["<strong>Palazzo dell'Emiciclo</strong> fu costruito nel <strong>1888</strong> sulle basi di una precedente chiesa seicentesca, progettato dall'architetto <strong>Carlo Waldis</strong>. Oggi ospita la sede del <strong>Consiglio regionale dell'Abruzzo</strong>.", "Il nome deriva dalla grande <strong>esedra neoclassica</strong> all'ingresso, con elegante <strong>portico semicircolare in stile ionico</strong>. La facciata presenta due aquile, bassorilievi dell'Italia e della Storia, sei cariatidi e i busti di Bacco e Cerere.", "Sotto il colonnato sono collocati i <strong>busti di sedici illustri abruzzesi</strong>, tra cui Cola dell'Amatrice e San Giovanni da Capestrano.", "All'interno si trova una <strong>sala ipogea da 250 posti</strong> destinata a convegni, conferenze e presentazioni culturali."],en:["<strong>Palazzo dell'Emiciclo</strong> was built in <strong>1888</strong> on the foundations of a previous 17th-century church, designed by architect <strong>Carlo Waldis</strong>. Today it houses the <strong>Abruzzo Regional Council</strong>.", "Its name comes from the large <strong>neoclassical exedra</strong> at the entrance, with an elegant <strong>semicircular portico in Ionic style</strong>. The facade features two eagles, bas-reliefs of Italy and History, six caryatids, and busts of Bacchus and Ceres.", "Beneath the colonnade are the <strong>busts of sixteen illustrious Abruzzese citizens</strong>, including Cola dell'Amatrice and San Giovanni da Capestrano.", "Inside there is a <strong>250-seat underground hall</strong> used for conventions, conferences, and cultural presentations."]},
+
+  8: {it:["L'Aquila è divisa in <strong>quattro quarti storici</strong>, nati nel XIII secolo per dare ordine a una città sorta dall'unione di decine di castelli. Ogni comunità che scendeva dai monti riceveva un lotto dove ricostruire la propria chiesa, piazza e fontana.", "Il <strong>Quarto di San Pietro</strong> (nord-ovest) ha origini nel castello di Coppito. A vocazione artigiana, il suo stemma è un <strong>grifone</strong> e il colore il <strong>giallo</strong>. È il punto di riferimento per le comunità provenienti dalla valle del fiume Aterno.", "Il <strong>Quarto di Santa Maria</strong> (nord-est), legato al castello di Paganica, è il cuore pulsante della vita cittadina con Piazza Duomo. Il suo simbolo è una <strong>testa di moro</strong> e il colore l'<strong>azzurro</strong>.", "Il <strong>Quarto di San Giorgio</strong> (sud-est), oggi noto come Santa Giusta, era il punto d'approdo per le popolazioni di Bagno e Monticchio. Il simbolo è un <strong>cavallo bianco</strong> su fondo argento e il colore il <strong>rosso</strong>.", "Il <strong>Quarto di San Giovanni</strong> (sud-ovest), detto anche San Marciano, è legato al castello di Roio. Il più aristocratico e silenzioso, è identificato dal colore <strong>verde</strong> e dal simbolo delle <strong>chiavi incrociate</strong>."],en:["L'Aquila is divided into <strong>four historic quarters</strong>, created in the 13th century to give order to a city born from the union of dozens of castles. Each community coming down from the mountains received a plot of land to rebuild their own church, square, and fountain.", "The <strong>Quarto di San Pietro</strong> (northwest) traces its origins to Coppito Castle. Known for its artisanal tradition, its coat of arms is a <strong>griffin</strong> and its color is <strong>yellow</strong>. It served communities from the Aterno River valley.", "The <strong>Quarto di Santa Maria</strong> (northeast), linked to Paganica Castle, is the beating heart of city life, home to Piazza Duomo. Its symbol is a <strong>Moor's head</strong> and its color is <strong>blue</strong>.", "The <strong>Quarto di San Giorgio</strong> (southeast), now known as Santa Giusta, was the hub for populations from Bagno and Monticchio. Its symbol is a <strong>white horse</strong> on a silver background and its color is <strong>red</strong>.", "The <strong>Quarto di San Giovanni</strong> (southwest), also called San Marciano, is linked to Roio Castle. The most aristocratic and quiet quarter, identified by the color <strong>green</strong> and the symbol of <strong>crossed keys</strong>."]},
+  23: {it:["L'<strong>Auditorium del Parco</strong> fu donato alla città dalla <strong>Provincia Autonoma di Trento</strong> dopo il terremoto del 2009. Progettato da <strong>Renzo Piano</strong> a titolo gratuito, fu inaugurato nell'ottobre <strong>2012</strong> alla presenza del Maestro <strong>Claudio Abbado</strong> e del Presidente <strong>Giorgio Napolitano</strong>.", "La struttura — tre cubi di larice colorato immersi nel Parco del Forte Spagnolo — è un capolavoro di architettura contemporanea. Il cubo centrale ospita una <strong>sala da concerto da 240 posti</strong> con acustica naturale perfetta. I tunnel trasparenti di collegamento mantengono il contatto visivo con il parco circostante.", "È la sede principale dei <strong>Solisti Aquilani</strong> e della <strong>Società Aquilana dei Concerti \"B. Barattelli\"</strong>. Ospita concerti, conferenze e rassegne quasi quotidianamente.", "La struttura è visibile e ammirabile esternamente in qualsiasi momento, essendo parte del <strong>parco pubblico</strong>. L'interno è accessibile solo durante gli eventi — l'ingresso può essere gratuito o a pagamento a seconda dell'organizzatore. I biglietti sono acquistabili online o in loco prima dell'evento."],en:["The <strong>Auditorium del Parco</strong> was donated to the city by the <strong>Autonomous Province of Trento</strong> after the 2009 earthquake. Designed by <strong>Renzo Piano</strong> pro bono, it was inaugurated in October <strong>2012</strong> in the presence of Maestro <strong>Claudio Abbado</strong> and President <strong>Giorgio Napolitano</strong>.", "The structure — three colored larch cubes set in the Forte Spagnolo Park — is a masterpiece of contemporary architecture. The central cube houses a <strong>240-seat concert hall</strong> with perfect natural acoustics. Transparent connecting tunnels maintain constant visual contact with the surrounding park.", "It is the main home of the <strong>Solisti Aquilani</strong> and the <strong>Società Aquilana dei Concerti \"B. Barattelli\"</strong>. It hosts concerts, conferences, and festivals almost daily.", "The structure can be viewed and admired from outside at any time, as it is part of the <strong>public park</strong>. The interior is accessible only during events — admission may be free or paid depending on the organizer. Tickets are available online or on-site before the event."]},
+  24: {it:["Il <strong>Palazzo Carli Benedetti</strong> è una delle testimonianze più preziose del Rinascimento aquilano. Situato in via Accursio nel Quarto di Santa Maria, fu commissionato da <strong>Giacomo Carli</strong> nella seconda metà del XV secolo. La raffinatezza stilistica ha portato molti storici ad attribuirne l'influenza a <strong>Silvestro dell'Aquila</strong>.", "La facciata è impreziosita da un <strong>portale monumentale</strong> e finestre riccamente incorniciate. L'interno custodisce un raro <strong>solaio ligneo dipinto del XV secolo</strong>. Dopo il terremoto del 1703, l'abate <strong>Ludovico Quatrari</strong> vi integrò elementi barocchi senza snaturare l'impianto rinascimentale. Negli anni '70-'80 fu sede dell'<strong>Accademia di Belle Arti</strong>.", "Il sisma del <strong>2009</strong> ha reso necessari anni di restauri — conclusi nel <strong>2016</strong> — che hanno portato alla scoperta di affreschi nascosti per secoli. È oggi considerato un modello di <strong>restauro resiliente</strong>.", "Il palazzo è una <strong>residenza privata</strong>: non ha orari museali quotidiani. Viene aperto in occasione di eventi speciali come le <strong>Giornate ADSI</strong> (Dimore Storiche Italiane) e le iniziative <strong>Palazzi Aperti</strong>, solitamente 10:00-13:00 e 15:00-18:00. Monitora i calendari di <strong>L'Aquila 2026</strong> o rivolgiti a <strong>Welcome AQ</strong>."],en:["<strong>Palazzo Carli Benedetti</strong> is one of the most precious examples of the L'Aquila Renaissance. Located on Via Accursio in the Quarto di Santa Maria, it was commissioned by <strong>Giacomo Carli</strong> in the second half of the 15th century. Its stylistic refinement has led many historians to attribute its influence to <strong>Silvestro dell'Aquila</strong>.", "The façade features a <strong>monumental portal</strong> and richly framed windows. The interior houses a rare <strong>15th-century painted wooden ceiling</strong>. After the 1703 earthquake, Abbot <strong>Ludovico Quatrari</strong> integrated Baroque elements without altering the Renaissance structure. In the 1970s-80s it housed the <strong>Academy of Fine Arts</strong>.", "The <strong>2009</strong> earthquake necessitated years of restoration — completed in <strong>2016</strong> — that led to the discovery of frescoes hidden for centuries. It is now considered a model of <strong>resilient restoration</strong>.", "The palace is a <strong>private residence</strong>: it has no daily museum hours. It opens during special events such as the <strong>ADSI Days</strong> (Historic Residences) and <strong>Palazzi Aperti</strong> initiatives, usually 10:00 AM-1:00 PM and 3:00-6:00 PM. Monitor the <strong>L'Aquila 2026</strong> calendars or contact <strong>Welcome AQ</strong>."]},
+  25: {it:["<strong>Piazza Regina Margherita</strong> nasce nel <strong>1881</strong> sulle pietre recuperate dalla demolizione della chiesa di <strong>San Francesco a Palazzo</strong> (1878). Le pietre bianche e rosa della facciata originaria furono riutilizzate per decorare la nuova piazza, conservando così la memoria di ciò che era stato perduto.", "La piazza è dominata dalla scenografica <strong>Fontana del Nettuno</strong>: il dio del mare ritratto su una roccia emergente da una conchiglia, realizzato in <strong>terracotta dipinta</strong> a imitazione del bronzo antico. Un esempio di come l'estetica ottocentesca nobilitasse materiali meno preziosi.", "Il recente restauro ha valorizzato la pavimentazione in pietra e restituito brillantezza alla <strong>facciata bicroma</strong>, con il caratteristico accostamento di pietre calcaree bianche e rosa. È uno degli spazi pubblici più eleganti del centro storico."],en:["<strong>Piazza Regina Margherita</strong> was created in <strong>1881</strong> from the stones recovered from the demolition of the church of <strong>San Francesco a Palazzo</strong> (1878). The white and pink stones of the original façade were reused to decorate the new square, preserving the memory of what had been lost.", "The square is dominated by the spectacular <strong>Fountain of Neptune</strong>: the god of the sea depicted on a rock emerging from a shell, made of <strong>painted terracotta</strong> to imitate ancient bronze. An example of how 19th-century aesthetics ennobled less precious materials.", "Recent restoration work enhanced the stone paving and restored the brilliance of the <strong>two-tone façade</strong>, with the characteristic combination of white and pink limestone. It is one of the most elegant public spaces in the historic center."]},
+  26: {it:["Il <strong>Palazzetto dei Nobili</strong> sorge nel <strong>centro topografico esatto</strong> della città, in Piazza Santa Margherita. Fu costruito nel <strong>1601</strong> dalla Congregazione dei Nobili sui resti del preesistente Palazzo della Camera del XV secolo, progettato da <strong>Giulio de Spazzina</strong>.", "Il terremoto del <strong>1703</strong> lo distrusse quasi interamente; la ricostruzione tra il <strong>1708 e il 1715</strong> gli conferì le eleganti fattezze tardo-barocche attuali. L'interno è dominato dalla <strong>Sala dell'Oratorio</strong> con la cantoria sorretta da un'aquila ad ali spiegate e il dipinto dell'Assunzione di <strong>Girolamo Cenatiempo</strong>. Dopo il sisma del 2009, riaprì già nel <strong>dicembre 2012</strong> grazie a un restauro finanziato dalla Camera dei Deputati.", "Oggi è uno <strong>spazio espositivo e congressuale pubblico</strong> del Comune dell'Aquila: ospita mostre d'arte, presentazioni di libri, conferenze e concerti. L'ingresso è gratuito durante mostre e eventi aperti al pubblico."],en:["The <strong>Palazzetto dei Nobili</strong> stands at the <strong>exact topographical center</strong> of the city, in Piazza Santa Margherita. It was built in <strong>1601</strong> by the Congregation of Nobles on the ruins of the 15th-century Palazzo della Camera, designed by <strong>Giulio de Spazzina</strong>.", "The <strong>1703</strong> earthquake almost completely destroyed it; reconstruction between <strong>1708 and 1715</strong> gave it its current elegant late-Baroque appearance. The interior is dominated by the <strong>Oratory Hall</strong> with a choir supported by an eagle with outstretched wings and the Assumption painting by <strong>Girolamo Cenatiempo</strong>. After the 2009 earthquake, it reopened as early as <strong>December 2012</strong> thanks to a restoration funded by the Chamber of Deputies.", "Today it is a <strong>public exhibition and conference space</strong> of the Municipality of L'Aquila: it hosts art exhibitions, book presentations, conferences, and concerts. Admission is free during public exhibitions and events."]},
+  28: {it:["<strong>Porta Bazzano</strong> è uno dei varchi più monumentali del sistema difensivo dell'Aquila. Risalente alla seconda fondazione della città (1266-1316), deve il nome al castello di <strong>Bazzano</strong>, i cui abitanti la costruirono e gestirono. Urbanisticamente segna il termine dell'asse che conduce direttamente a Piazza Duomo.", "L'arco a tutto sesto in stile tardo-barocco — frutto della ricostruzione post-1703 — è coronato dal monogramma bernardiniano <strong>IHS</strong> come chiave di volta: testimonianza della devozione cittadina a San Bernardino. Nella sua storia bellica: nel <strong>1424</strong> da qui partì la sortita di <strong>Antonuccio Camponeschi</strong> che sconfisse il condottiero Braccio da Montone durante l'assedio.", "Nonostante i gravi danni del <strong>2009</strong>, fu uno dei <strong>primi monumenti restituiti alla cittadinanza</strong>, grazie a un restauro filologico completato nel <strong>2015</strong>."],en:["<strong>Porta Bazzano</strong> is one of the most monumental gateways in L'Aquila's defensive system. Dating from the city's second founding (1266-1316), it owes its name to <strong>Bazzano</strong> Castle, whose inhabitants built and managed it. Urbanistically, it marks the end of the axis leading directly to Piazza Duomo.", "The round arch in late-Baroque style — the result of post-1703 reconstruction — is crowned by the Bernardine monogram <strong>IHS</strong> as a keystone: testament to the city's devotion to Saint Bernardino. In its military history: in <strong>1424</strong>, <strong>Antonuccio Camponeschi</strong> launched his famous sortie from this very gate to defeat the condottiero Braccio da Montone during the siege.", "Despite the severe damage of <strong>2009</strong>, it was one of the <strong>first monuments returned to citizens</strong>, thanks to a philological restoration completed in <strong>2015</strong>."]},
+  29: {it:["<strong>Porta Napoli</strong>, originariamente <strong>Porta San Ferdinando</strong> in onore di Ferdinando II, fu costruita nel <strong>1820</strong> come arco trionfale che segnava l'ingresso meridionale della città. Non una barriera difensiva medievale, ma un simbolo della modernità ottocentesca.", "La sua posizione all'estremità di <strong>Viale Francesco Crispi</strong> crea un perfetto cannocchiale prospettico: una linea retta che guida l'occhio verso il cuore del centro storico, in netto contrasto con i tortuosi percorsi medievali circostanti.", "Curiosità: fu costruita con <strong>materiali di recupero</strong> dalla demolizione della chiesa di San Lorenzo de' Porcinari (1811). La riorganizzazione sapiente della pietra bianca già lavorata permise di creare un'opera dal forte <strong>valore rappresentativo</strong>, integrando la memoria religiosa della città nella nuova veste civile."],en:["<strong>Porta Napoli</strong>, originally <strong>Porta San Ferdinando</strong> in honor of Ferdinand II, was built in <strong>1820</strong> as a triumphal arch marking the southern entrance to the city. Not a medieval defensive barrier, but a symbol of 19th-century modernity.", "Its position at the end of <strong>Viale Francesco Crispi</strong> creates a perfect perspective telescope: a straight line guiding the eye toward the heart of the historic center, in sharp contrast with the surrounding tortuous medieval routes.", "Curiosity: it was built using <strong>recycled materials</strong> from the demolition of the church of San Lorenzo de' Porcinari (1811). The skillful reorganization of already-worked white stone allowed the creation of a work of strong <strong>representative value</strong>, integrating the city's religious memory into its new civic identity."]},
+  10: {it:["La <strong>Statua di Sallustio</strong> in <strong>Piazza Palazzo</strong> è un omaggio a <strong>Gaio Sallustio Crispo</strong>, nato nell'86 a.C. nell'antica <em>Amiternum</em> — il territorio dell'Aquila — e autore di capolavori come il <em>Bellum Catilinae</em> e il <em>Bellum Iugurthinum</em>.", "L'opera bronzea fu commissionata allo scultore romano <strong>Cesare Zocchi</strong>, noto per il monumento a Dante a Trento, e inaugurata nel <strong>settembre 1903</strong>. Raffigura lo storico in toga, con lo sguardo all'orizzonte e un rotolo di papiro tra le mani.", "La posizione di fronte a <strong>Palazzo Margherita</strong>, sede del potere civile, è un richiamo simbolico: lo storico che denunciò la corruzione romana sembra vigilare sull'operato delle istituzioni. Dopo il sisma del 2009, la statua è rimasta un punto di riferimento inamovibile, divenendo simbolo di resilienza."],en:["The <strong>Statue of Sallust</strong> in <strong>Piazza Palazzo</strong> honors <strong>Gaius Sallustius Crispus</strong>, born in 86 BC in ancient <em>Amiternum</em> — the territory of L'Aquila — and author of masterpieces such as the <em>Bellum Catilinae</em> and the <em>Bellum Iugurthinum</em>.", "The bronze work was commissioned from Roman sculptor <strong>Cesare Zocchi</strong>, known for his monument to Dante in Trento, and inaugurated in <strong>September 1903</strong>. It depicts the historian in a toga, gazing toward the horizon with a papyrus scroll in hand.", "Its placement in front of <strong>Palazzo Margherita</strong>, the seat of civil power, carries symbolic meaning: the historian who denounced Roman corruption seems to watch over the city's institutions. After the 2009 earthquake, the statue remained an immovable landmark, becoming a symbol of resilience."]},
+  30: {it:["<strong>Palazzo Dragonetti Cappelli</strong>, nel <strong>Quarto di San Giorgio</strong>, ha radici nel <strong>XV secolo</strong>: fu edificato dalla famiglia Dragonetti, arrivata dal castello di Bazzano, probabilmente attorno a una torre preesistente. Il nome composto deriva dall'unione per matrimonio delle famiglie Dragonetti e Cappelli.", "Il salto architettonico di qualità è attribuito a <strong>Silvestro dell'Aquila</strong>, che trasformò l'edificio in un capolavoro del Rinascimento abruzzese con uno splendido <strong>cortile porticato a colonnine monolitiche</strong> e loggiati che ospitano preziosi dipinti di <strong>Mattia Preti</strong>.", "Il restauro conclusosi nel <strong>2019</strong> ha consolidato le strutture danneggiate dal sisma del 2009 e ha riportato alla luce un <strong>antico affresco di San Francesco</strong> precedentemente ignoto. Oggi è un edificio vivo: residenza privata, uffici, e straordinaria testimonianza del Rinascimento aquilano."],en:["<strong>Palazzo Dragonetti Cappelli</strong>, in the <strong>Quarto di San Giorgio</strong>, has roots in the <strong>15th century</strong>: it was built by the Dragonetti family, from the castle of Bazzano, likely around a pre-existing tower. The compound name derives from the union by marriage of the Dragonetti and Cappelli families.", "The architectural leap in quality is attributed to <strong>Silvestro dell'Aquila</strong>, who transformed the building into a masterpiece of the Abruzzo Renaissance with a splendid <strong>porticoed courtyard with monolithic columns</strong> and loggias housing precious paintings by <strong>Mattia Preti</strong>.", "The restoration completed in <strong>2019</strong> consolidated the earthquake-damaged structures and uncovered a <strong>previously unknown ancient fresco of Saint Francis</strong>. Today it is a living building: private residence, offices, and extraordinary testimony to the Aquilan Renaissance."]},
+  31: {it:["<strong>Palazzo Camponeschi</strong>, nel <strong>Quarto di San Pietro</strong>, nasce sulle case della potente famiglia omonima: nel <strong>XV secolo</strong> vi sorse il <strong>Palazzo della Camera</strong>, sede del governo cittadino. Ceduto ai Gesuiti, fu qui che nacque l'<strong>Aquilanum Collegium</strong>, nucleo originario dell'Università dell'Aquila.", "La trasformazione più imponente avvenne nel <strong>XVII secolo</strong>, quando i Gesuiti costruirono un grande collegio ridisegnando il quartiere. L'espulsione gesuitica nel <strong>1767</strong> lasciò l'opera incompiuta; fu la famiglia Spaventa nell'Ottocento a completare la facciata in stile eclettico-barocco.", "Riaperto nel <strong>2017</strong> dopo tre anni di restauri post-sisma, oggi ospita il <strong>Rettorato</strong> e i principali uffici amministrativi dell'<strong>Università degli Studi dell'Aquila</strong>: un palazzo storico pienamente vivo e operativo."],en:["<strong>Palazzo Camponeschi</strong>, in the <strong>Quarto di San Pietro</strong>, was built on the homes of the powerful Camponeschi family: in the <strong>15th century</strong> it hosted the <strong>Palazzo della Camera</strong>, the seat of city government. Donated to the Jesuits, it became home to the <strong>Aquilanum Collegium</strong>, the founding nucleus of the University of L'Aquila.", "The most imposing transformation occurred in the <strong>17th century</strong>, when the Jesuits built a large college, redesigning the neighborhood. Their expulsion in <strong>1767</strong> left the work unfinished; it was the Spaventa family in the 19th century who completed the eclectic-Baroque façade.", "Reopened in <strong>2017</strong> after three years of post-earthquake restoration, it now houses the <strong>Rectorate</strong> and the main administrative offices of the <strong>University of L'Aquila</strong>: a historic palace fully alive and operational."]},
+  32: {it:["<strong>Palazzo Pica Alfieri</strong> domina <strong>Piazza Margherita</strong> con la sua imponente facciata settecentesca su tre livelli. Sebbene le sue radici risalgano al <strong>Medioevo</strong> (case della famiglia Colonna), l'aspetto attuale è frutto della ricostruzione post-1703 voluta dal marchese Ludovico Pica, con il contributo dell'architetto <strong>Francesco Ferradini</strong>.", "Il nome \"<strong>Pica Alfieri</strong>\" deriva dall'unione per matrimonio delle due famiglie. Nei suoi saloni il palazzo ha ospitato sovrani e personalità illustri. All'interno, un maestoso cortile d'onore conduce al <strong>piano nobile</strong> con <strong>saloni affrescati e arredi d'epoca</strong> di rara bellezza.", "Tra i <strong>primi grandi edifici storici a riaprire</strong> dopo il 2009, oggi funziona come dinamico contenitore culturale: ospita convegni, mostre, concerti e matrimoni esclusivi, rendendolo una delle location più ricercate della città."],en:["<strong>Palazzo Pica Alfieri</strong> dominates <strong>Piazza Margherita</strong> with its imposing three-level 18th-century façade. Though its roots date to the <strong>Middle Ages</strong> (Colonna family homes), its current appearance results from post-1703 reconstruction commissioned by Marquis Ludovico Pica, with contributions from architect <strong>Francesco Ferradini</strong>.", "The name \"<strong>Pica Alfieri</strong>\" derives from the union by marriage of the two families. Its halls have hosted sovereigns and illustrious figures over the centuries. Inside, a majestic courtyard of honor leads to the <strong>main floor</strong> with <strong>frescoed halls and period furnishings</strong> of rare beauty.", "Among the <strong>first major historic buildings to reopen</strong> after 2009, today it functions as a dynamic cultural venue: hosting conferences, art exhibitions, concerts, and exclusive weddings, making it one of the city's most sought-after locations."]},
+  33: {it:["Il <strong>Parco della Memoria</strong>, a <strong>Piazzale Paoli</strong>, sorge a pochi passi da via Campo di Fossa, dove il sisma del <strong>6 aprile 2009</strong> si manifestò con la sua massima tragicità. <strong>Inaugurato nel 2021</strong>, è concepito come un \"giardino della riflessione\": uno spazio dove il vuoto lasciato dal dolore è diventato luogo di memoria attiva.", "L'elemento centrale è uno <strong>specchio d'acqua circolare</strong> dal quale si erge una scultura stilizzata che tende verso l'alto, simbolo di vita che supera le fratture. Lungo i camminamenti, i nomi delle <strong>309 vittime</strong> sono incisi nel metallo e nella pietra.", "La notte tra il <strong>5 e il 6 aprile</strong> il parco è il cuore della <strong>fiaccolata commemorativa</strong>. Alle 3:32 — l'ora della scossa — i cittadini si raccolgono in silenzio, scandita dai 99 rintocchi della campana delle Anime Sante."],en:["The <strong>Memorial Park</strong>, in <strong>Piazzale Paoli</strong>, stands steps from Via Campo di Fossa, where the earthquake of <strong>April 6, 2009</strong> struck with its greatest devastation. <strong>Inaugurated in 2021</strong>, it is conceived as a \"garden of reflection\": a space where the void left by grief has become a place of active remembrance.", "The central element is a <strong>circular reflecting pool</strong> from which a stylized sculpture rises upward, symbolizing life overcoming its fractures. Along the walkways, the names of the <strong>309 victims</strong> are engraved in metal and stone.", "On the night of <strong>April 5th–6th</strong>, the park becomes the heart of the <strong>torchlight commemoration</strong>. At 3:32 AM — the moment of the earthquake — citizens gather in silence, marked by the 99 tolls of the Anime Sante church bell."]},
+  34: {it:["Il <strong>Ponte Belvedere</strong> è uno dei simboli più forti della trasformazione urbana post-sisma. Il ponte originale, inaugurato nel <strong>1966</strong> su progetto dello Studio Arcangeli di Roma, collegava <strong>via Persichetti</strong> e <strong>viale Duca degli Abruzzi</strong> sopra la vallata dell'Aterno. Gravemente danneggiato nel 2009, fu chiuso e al centro di un lungo dibattito.", "Nel <strong>2021</strong> l'amministrazione optò per la demolizione del vecchio viadotto in cemento armato e per un progetto all'avanguardia: un <strong>ponte strallato in acciaio</strong> progettato dall'ingegnere <strong>Marco Petrangeli</strong>, con un'unica campata sorretta da un grande pennone verticale — simbolo della rinascita cittadina.", "Il cantiere, avviato tra il <strong>2023 e il 2024</strong>, ha impiegato per la prima volta in Abruzzo il <strong>calcestruzzo fibrorinforzato con fibre d'acciaio</strong>. La riapertura definitiva è prevista nel <strong>2026</strong>: non solo infrastruttura, ma \"attrattore monumentale\" e porta urbana panoramica."],en:["The <strong>Belvedere Bridge</strong> is one of the strongest symbols of post-earthquake urban transformation. The original bridge, inaugurated in <strong>1966</strong> by the Arcangeli Studio of Rome, connected <strong>Via Persichetti</strong> and <strong>Viale Duca degli Abruzzi</strong> over the Aterno Valley. Severely damaged in 2009, it was closed and became the subject of a long public debate.", "In <strong>2021</strong>, the administration chose to demolish the old reinforced concrete viaduct in favor of a cutting-edge project: a <strong>cable-stayed steel bridge</strong> designed by engineer <strong>Marco Petrangeli</strong>, with a single span supported by a large vertical mast — a symbol of the city's rebirth.", "Construction began between <strong>2023 and 2024</strong>, using for the first time in Abruzzo <strong>steel fiber-reinforced concrete</strong>. The final reopening is scheduled for <strong>2026</strong>: not just infrastructure, but a \"monumental attraction\" and panoramic urban gateway."]},
+  35: {it:["Il <strong>Palazzo Margherita</strong> è il simbolo autentico del potere civico dell'Aquila. La sua storia affonda le radici nel <strong>XIV secolo</strong>, raggiungendo il culmine del prestigio nella seconda metà del Cinquecento, quando divenne la dimora ufficiale di <strong>Margherita d'Austria</strong>. La presenza della \"Madama\" trasformò l'antico palazzo del Capitano in una sontuosa residenza rinascimentale.", "Il terremoto del <strong>1703</strong> ne mitigò le fattezze medievali, ma l'iconica <strong>Torre Civica</strong> rimase a custodia della <strong>Rebuffone</strong>, la campana che scandisce la vita degli aquilani con i suoi 99 rintocchi al tramonto. Il sisma del <strong>2009</strong> ha reso necessario uno dei restauri più complessi della ricostruzione, con l'integrazione di moderne tecnologie antisismiche.", "Oggi ospita nuovamente <strong>gli uffici del Sindaco</strong> e <strong>la sala del Consiglio Comunale</strong>. La Torre Civica e la Cappella della Madonna degli Angeli — custode della Bolla del Perdono — sono parte integrante del complesso."],en:["<strong>Palazzo Margherita</strong> is the authentic symbol of L'Aquila's civic power. Its history dates back to the <strong>14th century</strong>, reaching its height of prestige in the second half of the 16th century, when it became the official residence of <strong>Margaret of Austria</strong>. The presence of the \"Madama\" transformed the ancient Captain's Palace into a sumptuous Renaissance residence.", "The <strong>1703</strong> earthquake toned down its medieval features, but the iconic <strong>Civic Tower</strong> remained home to the <strong>Rebuffone</strong>, the bell that marks the life of L'Aquila's citizens with its 99 chimes at sunset. The <strong>2009</strong> earthquake necessitated one of the most complex restorations in the reconstruction, integrating modern earthquake-resistant technologies.", "Today it once again houses <strong>the Mayor's offices</strong> and <strong>the City Council chamber</strong>. The Civic Tower and the Chapel of the Madonna degli Angeli — custodian of the Bull of Forgiveness — are an integral part of the complex."]},
+  36: {it:["Le <strong>Fontane Gemelle di Piazza Duomo</strong> — la <strong>Fontana settentrionale</strong> (verso la Cattedrale) e la <strong>Fontana meridionale</strong> (verso le Anime Sante) — sono un elemento imprescindibile dell'arredo urbano aquilano. La loro storia è legata alla modernizzazione del sistema idrico dopo l'Unità d'Italia.", "La <strong>Fontana settentrionale</strong>, prima a essere posizionata nel <strong>1904</strong>, è opera bronzea dello scultore pescarese <strong>Nicola D'Antino</strong> — lo stesso autore della Fontana Luminosa. La gemella meridionale fu completata successivamente per creare un <strong>asse visivo monumentale</strong>. Entrambe presentano un'ampia vasca circolare in pietra locale con un elegante candelabro bronzeo decorato con figure antropomorfe.", "Per oltre un secolo sono state il punto di ritrovo prediletto degli aquilani, cornice del <strong>mercato cittadino storico</strong>. Con la <strong>riqualificazione di Piazza Duomo terminata nel 2024</strong>, sono state integrate in una nuova pavimentazione con illuminazione LED che ne esalta la monumentalità."],en:["The <strong>Twin Fountains of Piazza Duomo</strong> — the <strong>Northern Fountain</strong> (facing the Cathedral) and the <strong>Southern Fountain</strong> (facing the Anime Sante) — are an essential element of L'Aquila's urban landscape. Their history is tied to the modernization of the water system after Italy's unification.", "The <strong>Northern Fountain</strong>, first installed in <strong>1904</strong>, is a bronze work by sculptor <strong>Nicola D'Antino</strong> — the same artist who created the Fontana Luminosa. The twin was completed later to form a <strong>monumental visual axis</strong>. Both feature large circular basins in local stone with an elegant bronze candelabra decorated with anthropomorphic figures.", "For over a century they have been a favorite gathering point, framing the <strong>historic city market</strong>. With the <strong>redevelopment of Piazza Duomo completed in 2024</strong>, they are integrated into new paving with an LED lighting system that enhances their monumentality."]},
+  37: {it:["I <strong>Portici di San Bernardino</strong> formano un monumentale corridoio prospettico che collega <strong>via Vittorio Veneto</strong> alla piazza della <strong>Basilica di San Bernardino</strong>. Realizzati tra la fine dell'Ottocento e l'inizio del Novecento, risposero alla duplice esigenza di regolarizzare il dislivello della via e creare un percorso coperto contro le rigide condizioni climatiche invernali.", "Architettonicamente, presentano uno <strong>stile neoclassico sobrio e imponente</strong>: una lunga successione di arcate a tutto sesto su pilastri squadrati, con ampie <strong>volte a crociera</strong> che creano un suggestivo gioco di profondità culminante verso la facciata della Basilica. Non un semplice luogo di transito, ma il cuore pulsante del <strong>commercio e della vita sociale aquilana</strong>.", "Dopo i danni del <strong>2009</strong>, un attento restauro strutturale ha riportato i portici alla piena funzione originaria. Con la riapertura della Basilica e il ritorno delle attività commerciali, i portici hanno ripreso il loro ruolo di \"<strong>salotto della città</strong>\", tappa imprescindibile per turisti e aquilani."],en:["The <strong>Porticoes of San Bernardino</strong> form a monumental perspective corridor connecting <strong>Via Vittorio Veneto</strong> to the square of the <strong>Basilica of San Bernardino</strong>. Built between the late 19th and early 20th centuries, they responded to the dual need to overcome the street's unevenness and create a sheltered walkway against harsh winter conditions.", "Architecturally, they feature a <strong>sober and imposing neoclassical style</strong>: a long succession of round arches on square pillars, with wide <strong>cross vaults</strong> creating a striking play of depth that culminates toward the Basilica's façade. Not a mere transit point, but the beating heart of <strong>L'Aquila's commerce and social life</strong>.", "After the damage of <strong>2009</strong>, careful restoration returned the porticoes to full function. With the reopening of the Basilica and the return of businesses, the porticoes have resumed their role as the city's \"<strong>living room</strong>\" — an essential stop for tourists and residents alike."]},
+};
+
+const MONUMENT_HOURS = {
+  1: {it:["La fontana è visitabile liberamente in qualsiasi momento, essendo collocata in uno spazio pubblico aperto. <strong>L'accesso è completamente gratuito</strong> e non richiede prenotazione.", "Il luogo è particolarmente suggestivo nelle ore mattutine, quando la luce radente valorizza i dettagli dei mascheroni lapidei e la composizione a scacchiera in pietra bianca e rosa. Durante gli eventi cittadini legati alla Perdonanza o alle festività aquilane, la fontana diventa uno dei principali punti di ritrovo.", "È uno dei luoghi più fotografati e visitati della città, soprattutto durante eventi e manifestazioni. La pratica diffusa tra i visitatori è quella di <strong>contare le 99 cannelle</strong> — mettiti alla prova!"],en:["The fountain can be visited freely at any time, as it is located in an open public space. <strong>Admission is completely free</strong> and no reservation is required.", "The site is particularly evocative in the morning hours, when the raking light highlights the details of the stone masks and the checkerboard composition in white and pink stone. During city events related to the Perdonanza or L'Aquila's festivities, the fountain becomes one of the main gathering points.", "It is one of the most photographed and visited sites in the city, especially during events. A popular tradition among visitors is to <strong>count all 99 spouts</strong> — give it a try!"]},
+  2: {it:["La Basilica è aperta al culto e alle visite. Grazie agli interventi d'urgenza effettuati subito dopo il sisma del 2009, la <strong>Porta Santa</strong> fu riaperta già nell'agosto dello stesso anno, garantendo la continuità della Perdonanza.", "Il restauro integrale finanziato dall'Eni, conclusosi il <strong>20 dicembre 2017</strong>, ha restituito la Basilica in tutto il suo splendore. L'eccellenza del restauro è stata premiata nel 2020 con il prestigioso <strong>European Heritage Award</strong> della Commissione Europea e Europa Nostra.", "La Perdonanza Celestiniana — ogni anno dal <strong>28 al 29 agosto</strong> — prevede l'apertura della Porta Santa con rito solenne. Dal 2019 è iscritta <strong>dall'UNESCO nel Patrimonio Immateriale dell'Umanità</strong>. Il Fuoco del Morrone, acceso sulla Torre Civica, segna l'inizio ufficiale dei festeggiamenti."],en:["The Basilica is open for worship and visits. Thanks to emergency interventions carried out immediately after the 2009 earthquake, the <strong>Holy Door</strong> was reopened as early as August of that year, ensuring the continuity of the Perdonanza.", "The comprehensive restoration funded by Eni, concluded on <strong>December 20, 2017</strong>, returned the Basilica in all its splendor. The excellence of the restoration was recognized in 2020 with the prestigious <strong>European Heritage Award</strong> from the European Commission and Europa Nostra.", "The Celestinian Pardon — celebrated every year from <strong>August 28 to 29</strong> — involves the solemn opening of the Holy Door. Since 2019, it has been inscribed <strong>by UNESCO as Intangible Heritage of Humanity</strong>. The Fuoco del Morrone, lit on the Civic Tower, marks the official start of the celebrations."]},
+  3: {it:["<strong>Orari:</strong> tutti i giorni, dal lunedì alla domenica, con orario continuato dalle <strong>9:00 alle 19:00</strong>. L'ultimo ingresso è alle ore 18:00.", "<strong>Biglietti e tariffe:</strong>", "• Intero: <strong>10,00 €</strong>", "• Ridotto Giovani (18–25 anni): <strong>2,00 €</strong>", "• Gruppi: <strong>8,00 €</strong>", "• Under 18: <strong>Ingresso gratuito</strong>", "• Prima domenica del mese: <strong>ingresso gratuito per tutti</strong>", "È caldamente consigliato l'acquisto del biglietto online per assicurarsi l'accesso, specialmente nei periodi di alta stagione. Il 19 dicembre 2025 le collezioni e il leggendario <strong>Mammut</strong> sono tornati nelle sale restaurate del Castello Cinquecentesco."],en:["<strong>Opening hours:</strong> every day, Monday through Sunday, from <strong>9:00 AM to 7:00 PM</strong>. Last admission is at 6:00 PM.", "<strong>Tickets and fees:</strong>", "• Full price: <strong>€10.00</strong>", "• Reduced – Youth (18–25 years): <strong>€2.00</strong>", "• Groups: <strong>€8.00</strong>", "• Under 18: <strong>Free admission</strong>", "• First Sunday of the month: <strong>free admission for everyone</strong>", "It is strongly recommended to purchase tickets online to guarantee admission, especially during peak season. On December 19, 2025, the collections and the legendary <strong>Mammoth</strong> returned to the restored halls of the 16th-century Castle."]},
+  4: {it:["La Basilica di San Bernardino è un luogo di culto vivo. <strong>L'ingresso è gratuito</strong> per tutti i visitatori — non è necessario acquistare alcun biglietto.", "<strong>Orari di apertura:</strong> la chiesa accoglie fedeli e turisti dalle <strong>7:00 alle 19:00</strong> (o 19:30) nei giorni feriali, con apertura posticipata alle <strong>8:30 la domenica</strong>.", "Le visite turistiche sono sospese o limitate durante le Sante Messe, generalmente celebrate alle <strong>8:30, 11:30 e 18:30 nei giorni festivi</strong>.", "Per chi desidera un approfondimento, guide locali sono spesso disponibili all'esterno della basilica o presso i punti informativi di <em>L'Aquila Capitale della Cultura 2026</em>, per accompagnare i gruppi alla scoperta dei dettagli più nascosti del convento e dei chiostri."],en:["The Basilica of San Bernardino is a living place of worship. <strong>Admission is free</strong> for all visitors — no ticket purchase is required.", "<strong>Opening hours:</strong> the church welcomes worshippers and tourists from <strong>7:00 AM to 7:00 PM</strong> (or 7:30 PM) on weekdays, with a later opening at <strong>8:30 AM on Sundays</strong>.", "Tourist visits are suspended or limited during Holy Mass, generally celebrated at <strong>8:30 AM, 11:30 AM, and 6:30 PM on holidays</strong>.", "For those seeking a deeper experience, local guides are often available outside the basilica or at the <em>L'Aquila Capital of Culture 2026</em> information points, to accompany groups to discover the hidden details of the convent and its cloisters."]},
+  5: {it:["La Piazza del Duomo è uno spazio pubblico <strong>sempre accessibile e gratuito</strong>, animato in ogni ora del giorno.", "Di giorno è animata da cittadini, turisti e attività commerciali. Di sera diventa un importante punto di ritrovo grazie ai numerosi caffè, ristoranti e gelaterie che si affacciano lungo tutto il perimetro.", "La piazza ospita regolarmente <strong>eventi, mercati temporanei e manifestazioni culturali</strong>. Dopo il terremoto del 2009, il mercato storico quotidiano è stato trasferito a Piazza d'Armi, ma la piazza ha ripreso il suo ruolo di fulcro della vita cittadina."],en:["Piazza del Duomo is a public space that is <strong>always accessible and free of charge</strong>, bustling at all hours of the day.", "During the day it is filled with residents, tourists, and businesses. In the evening it becomes an important gathering place thanks to the many cafes, restaurants, and ice cream parlors lining its entire perimeter.", "The square regularly hosts <strong>events, temporary markets, and cultural events</strong>. After the 2009 earthquake, the historic daily market was moved to Piazza d'Armi, but the square has reclaimed its role as the heart of city life."]},
+  6: {it:["<strong>Ingresso gratuito</strong> — non è necessario acquistare alcun biglietto.", "<strong>Orari:</strong> la chiesa è aperta al pubblico con orario continuato dalle <strong>9:00 alle 18:00</strong> nei giorni feriali e fino alle <strong>20:00 nei festivi</strong>. Le visite turistiche sono sospese durante le funzioni religiose.", "Per le <strong>visite guidate</strong>, ci si può rivolgere alla Rettoria o alle guide turistiche locali che operano su prenotazione. I tour approfondiscono i dettagli tecnici del restauro post-2009, i segreti dell'organo a canne e le opere di Teofilo Patini.", "La struttura è dotata di <strong>sensori invisibili</strong> che monitorano costantemente la stabilità della cupola e delle mura — un gioiello di ingegneria moderna nascosto dietro il barocco."],en:["<strong>Free admission</strong> — no ticket purchase is required.", "<strong>Opening hours:</strong> the church is open to the public from <strong>9:00 AM to 6:00 PM</strong> on weekdays and until <strong>8:00 PM on holidays</strong>. Tourist visits are suspended during religious services.", "For <strong>guided tours</strong>, contact the Rectory or local tour guides who operate by reservation. Tours cover the technical details of the post-2009 restoration, the secrets of the pipe organ, and the works of Teofilo Patini.", "The structure is equipped with <strong>invisible sensors</strong> that constantly monitor the stability of the dome and walls — a marvel of modern engineering hidden behind the Baroque façade."]},
+  7: {it:["La Fontana Luminosa è collocata in Piazza Battaglione Alpini, uno spazio pubblico <strong>sempre accessibile e gratuito</strong>.", "Il sistema di illuminazione la rende particolarmente spettacolare di sera: durante le festività istituzionali brilla del <strong>Tricolore</strong>, si veste di <strong>rosa per il Giro d'Italia</strong>, e si tinge di colori simbolici per campagne di sensibilizzazione sociale.", "Nelle mattine d'inverno, quando l'acqua ghiaccia creando sculture cristalline, le luci colorate rifratte nel ghiaccio offrono uno spettacolo quasi magico. La fontana è il <strong>punto di partenza imprescindibile</strong> per ogni passeggiata nel centro storico aquilano."],en:["The Fontana Luminosa is located in Piazza Battaglione Alpini, a public space that is <strong>always accessible and free of charge</strong>.", "Its lighting system makes it particularly spectacular in the evening: during national celebrations it blazes with the <strong>Italian flag colors</strong>, turns <strong>pink for the Giro d'Italia</strong>, and takes on symbolic hues for social awareness campaigns.", "On winter mornings, when the water freezes creating crystalline sculptures, the colored lights refracted in the ice offer an almost magical spectacle. The fountain is the <strong>essential starting point</strong> for any stroll through L'Aquila's historic center."]},
+  11: {it:["<strong>Orari di apertura:</strong>", "• Giovedì: <strong>9:00 – 13:00</strong>", "• Venerdì, Sabato e Domenica: <strong>11:00 – 19:00</strong>", "• Lunedì, Martedì e Mercoledì: <strong>Chiuso</strong>", "<strong>Biglietti:</strong> l'accesso è consentito previo acquisto di un biglietto d'ingresso, con tariffe che prevedono diverse agevolazioni, inclusi <strong>sconti speciali per i giovani e i residenti in Abruzzo</strong>.", "Il cortile interno che attraversa il Palazzo tra Piazza di Santa Maria Paganica e Via Garibaldi è uno <strong>spazio pubblico aperto</strong>, affine al sistema urbano della piazza del MAXXI di Roma."],en:["<strong>Opening hours:</strong>", "• Thursday: <strong>9:00 AM – 1:00 PM</strong>", "• Friday, Saturday and Sunday: <strong>11:00 AM – 7:00 PM</strong>", "• Monday, Tuesday and Wednesday: <strong>Closed</strong>", "<strong>Tickets:</strong> access requires the purchase of an entrance ticket, with rates including various discounts, including <strong>special discounts for young people and Abruzzo residents</strong>.", "The internal courtyard running through the building between Piazza di Santa Maria Paganica and Via Garibaldi is an <strong>open public space</strong>, akin to the urban system of the MAXXI square in Rome."]},
+  12: {it:["Il teatro <strong>non è aperto al pubblico per visite libere continuative</strong>: è accessibile esclusivamente in concomitanza con gli eventi e gli spettacoli in cartellone.", "Gran parte delle iniziative legate alla fase di riapertura e al festival <strong>CostellAzioni</strong> sono offerte gratuitamente alla cittadinanza. L'accesso è vincolato a un sistema di <strong>prenotazione obbligatoria</strong>, gestito tramite le piattaforme digitali ufficiali di L'Aquila 2026.", "La prenotazione è necessaria per gestire la capienza limitata della sala e garantire la tutela del bene barocco. Per informazioni sugli eventi in programma: <strong>laquila2026.it</strong> e canali social ufficiali."],en:["The theater is <strong>not open to the public for continuous free tours</strong>: it is accessible exclusively during scheduled events and performances.", "Most of the reopening and festival <strong>CostellAzioni</strong> activities are offered free of charge to the public. Access is strictly subject to a <strong>mandatory reservation system</strong>, managed through the official digital platforms of L'Aquila 2026.", "Reservations are required to manage the auditorium's limited capacity and ensure the preservation of this Baroque heritage. For information on upcoming events: <strong>laquila2026.it</strong> and official social channels."]},
+  13: {it:["La chiesa è attualmente <strong>chiusa al pubblico</strong> per i complessi lavori di restauro post-sisma. Non esistono orari di apertura ordinari.", "La <strong>piazza antistante</strong> permette di ammirare la splendida facciata e il rosone con i 12 telamoni in qualsiasi momento, completamente gratuitamente.", "Vengono organizzate <strong>aperture straordinarie</strong> in occasione delle Giornate FAI, raduni nazionali o eventi culturali specifici legati alla ricostruzione. In questi casi la visita è quasi sempre accompagnata da guide specializzate o storici dell'arte.", "Per chi desidera approfondire senza attendere le aperture, le <strong>guide turistiche autorizzate della Regione Abruzzo</strong> includono Santa Giusta nei loro itinerari esterni del centro storico, fornendo spiegazioni dettagliate anche senza accesso agli interni."],en:["The church is currently <strong>closed to the public</strong> due to complex post-earthquake restoration work. There are no regular opening hours.", "The <strong>square in front</strong> allows visitors to admire the splendid façade and the rose window with its 12 telamons at any time, completely free of charge.", "<strong>Special openings</strong> are organized during FAI Days, national gatherings, or specific cultural events related to the reconstruction. In these cases, the visit is almost always accompanied by specialized guides or art historians.", "For those wishing to learn more without waiting for special openings, the <strong>authorized tourist guides of the Abruzzo Region</strong> include Santa Giusta in their outdoor itineraries of the historic center, providing detailed explanations even without access to the interior."]},
+  14: {it:["La chiesa è attualmente uno dei <strong>cantieri di restauro più imponenti</strong> della ricostruzione aquilana. L'interno rimane inaccessibile al culto e alle visite.", "La <strong>piazza antistante</strong> è però tornata a vivere: la riqualificazione degli spazi pubblici e il restauro dei palazzi nobiliari circostanti, come Palazzo Ardinghelli, hanno restituito al monumento il suo ruolo di baricentro sociale e culturale.", "La facciata, protetta da complesse impalcature metalliche, è comunque visibile e raggiungibile liberamente. Per aggiornamenti sui lavori di restauro e le eventuali aperture straordinarie, consultare i canali ufficiali del Comune di L'Aquila."],en:["The church is currently one of the most impressive <strong>restoration projects</strong> in L'Aquila's reconstruction. The interior remains inaccessible for worship and visits.", "However, the <strong>surrounding square</strong> has come back to life: the redevelopment of public spaces and the restoration of surrounding noble palaces, such as Palazzo Ardinghelli, have restored the monument to its role as a social and cultural hub.", "The façade, protected by complex metal scaffolding, is still visible and freely accessible. For updates on restoration works and any special openings, consult the official channels of the Municipality of L'Aquila."]},
+  15: {it:["<strong>Esterno:</strong> La facciata medievale con i suoi iconici archi a sesto acuto è sempre visibile e accessibile gratuitamente passeggiando per il centro storico.", "<strong>Welcome AQ (interno):</strong> il centro servizi e accoglienza turistica ospitato all'interno è aperto:", "• Da martedì a domenica: <strong>9:00 – 18:00</strong>", "• Lunedì: <strong>Chiuso</strong>", "<strong>Residenza d'Epoca:</strong> parte della struttura opera come hotel di charme, offrendo la possibilità di pernottare in camere storiche — un'esperienza unica nel suo genere.", "L'edificio si trova a soli <strong>20 metri dalla Piazza del Duomo</strong>, vicino a tutti i punti di interesse turistico, culturale e universitario."],en:["<strong>Exterior:</strong> The medieval façade with its iconic pointed arches is always visible and freely accessible while strolling through the historic center.", "<strong>Welcome AQ (interior):</strong> the tourist service and reception center located inside is open:", "• Tuesday to Sunday: <strong>9:00 AM – 6:00 PM</strong>", "• Monday: <strong>Closed</strong>", "<strong>Residenza d'Epoca:</strong> part of the complex operates as a charming hotel, offering accommodation in historic rooms — a truly unique experience.", "The building is located just <strong>20 meters from Piazza del Duomo</strong>, close to all tourist, cultural, and university points of interest."]},
+  16: {it:["Dopo la ricostruzione completata nel <strong>2024</strong>, la Torre Civica è regolarmente fruibile. I visitatori possono salire sulla sommità per godere di una <strong>vista panoramica</strong> su tutta la città.", "<strong>Orari:</strong> solitamente dalle <strong>9:30 alle 13:00</strong> e dalle <strong>15:30 alle 18:30</strong>.", "<strong>Biglietto d'ingresso</strong> richiesto — spesso incluso nei percorsi museali che comprendono le sale monumentali di Palazzo Margherita.", "A causa della ridotta capienza della scalinata interna, la <strong>prenotazione è fortemente raccomandata</strong>, specialmente durante la Perdonanza Celestiniana (dal <strong>23 al 29 agosto</strong>) e nei periodi di alta affluenza.", "La <strong>Bolla del Perdono</strong> di Celestino V viene estratta dalla cappella blindata ogni <strong>28 agosto</strong> per la cerimonia solenne. Il Fuoco del Morrone viene acceso sulla sommità della torre segnando l'inizio ufficiale dei festeggiamenti."],en:["After reconstruction completed in <strong>2024</strong>, the Civic Tower is regularly accessible. Visitors can climb to the top to enjoy a <strong>panoramic view</strong> of the entire city.", "<strong>Opening hours:</strong> usually from <strong>9:30 AM to 1:00 PM</strong> and from <strong>3:30 to 6:30 PM</strong>.", "<strong>Entrance fee</strong> required — often included in museum tours that include the monumental rooms of Palazzo Margherita.", "Due to the limited capacity of the internal staircase, <strong>reservations are strongly recommended</strong>, especially during the Perdonanza Celestiniana (from <strong>August 23 to 29</strong>) and during peak periods.", "The <strong>Bull of Forgiveness</strong> of Celestine V is extracted from its fortified chapel every <strong>August 28th</strong> for the solemn ceremony. The Fuoco del Morrone is lit at the top of the tower, marking the official start of the festivities."]},
+  17: {it:["<strong>Ingresso gratuito</strong> — luogo di culto vivo, accesso libero per tutti i visitatori.", "<strong>Orari:</strong>", "• Mattino: <strong>9:30 – 12:30</strong>", "• Pomeriggio: <strong>15:30 – 18:30</strong>", "L'accesso turistico può essere <strong>limitato o sospeso</strong> durante la celebrazione delle messe, specialmente la domenica e nei giorni festivi.", "All'interno sono posizionati <strong>pannelli con codici QR</strong> che consentono di approfondire la storia dell'edificio tramite smartphone. Per visite guidate professionali, contattare le associazioni di guide turistiche autorizzate della città.", "Durante grandi eventi come la <strong>Perdonanza Celestiniana</strong>, sono presenti volontari culturali che offrono accoglienza e brevi spiegazioni storiche."],en:["<strong>Free admission</strong> — a living place of worship, open access for all visitors.", "<strong>Opening hours:</strong>", "• Morning: <strong>9:30 AM – 12:30 PM</strong>", "• Afternoon: <strong>3:30 – 6:30 PM</strong>", "Tourist access may be <strong>limited or suspended</strong> during Mass, especially on Sundays and holidays.", "Inside, <strong>QR code panels</strong> allow visitors to learn more about the building's history via smartphone. For professional guided tours, contact the city's authorized tourist guide associations.", "During major events such as the <strong>Celestinian Pardon</strong>, cultural volunteers are present to offer hospitality and brief historical explanations."]},
+  19: {it:["<strong>Attenzione:</strong> non è possibile accedere ai percorsi sotterranei in autonomia. L'accesso è gestito <strong>esclusivamente tramite visite guidate</strong> organizzate da associazioni locali come <strong>Welcome AQ</strong>.", "Le visite non seguono un orario continuativo ma vengono programmate in <strong>date specifiche</strong>, solitamente durante i fine settimana o in occasione di grandi eventi cittadini.", "<strong>Prenotazione obbligatoria</strong> — il metodo più diretto è contattare l'infopoint turistico della città o monitorare i canali social dedicati al progetto.", "<strong>Biglietto:</strong> circa <strong>12 €</strong>, comprensivo del servizio di guida e dell'assicurazione per i partecipanti."],en:["<strong>Important:</strong> it is not possible to access the underground routes independently. Access is managed <strong>exclusively through guided tours</strong> organized by local associations such as <strong>Welcome AQ</strong>.", "Tours do not follow continuous opening hours but are scheduled on <strong>specific dates</strong>, usually during weekends or during major city events.", "<strong>Mandatory reservation</strong> — the most direct way is to contact the city's tourist information office or monitor the social media channels dedicated to the project.", "<strong>Ticket:</strong> approximately <strong>€12</strong>, including the guide service and participant insurance."]},
+  20: {it:["Il Teatro Stabile <strong>non è un museo visitabile liberamente</strong>. Si può entrare solo in occasione di spettacoli o eventi.", "<strong>Biglietti:</strong> acquistabili online o al botteghino. Prezzi indicativi: circa <strong>10 € – 28 €</strong> a seconda dello spettacolo. Sono disponibili abbonamenti stagionali.", "<strong>Botteghino:</strong>", "• Lun–Ven: circa <strong>10:00 – 17:00</strong>", "• Aperto anche prima degli spettacoli", "Le sale del teatro non hanno orari fissi come un museo: aprono <strong>solo durante gli eventi</strong>. Per il calendario completo degli spettacoli consultare il sito ufficiale del Teatro Stabile d'Abruzzo."],en:["The Teatro Stabile is <strong>not a museum open to the public</strong>. Entry is only possible during performances or events.", "<strong>Tickets:</strong> available online or at the box office. Approximate prices: approximately <strong>€10 – €28</strong> depending on the performance. Season tickets are available.", "<strong>Box office:</strong>", "• Mon–Fri: approximately <strong>10:00 AM – 5:00 PM</strong>", "• Also open before performances", "The theater halls have no fixed opening hours like a museum: they open <strong>only during events</strong>. For the full performance schedule, visit the official website of the Teatro Stabile d'Abruzzo."]},
+  21: {it:["<strong>Ingresso gratuito</strong> — non è necessario acquistare alcun biglietto per accedere a questo luogo di culto.", "<strong>Orari:</strong>", "• Mattino: <strong>8:30 – 12:30</strong>", "• Pomeriggio: <strong>16:30 – 19:00</strong>", "La chiesa segue gli orari tipici degli edifici religiosi cittadini. Gli orari possono subire variazioni in occasione di funzioni religiose particolari o eventi della parrocchia."],en:["<strong>Free admission</strong> — no ticket purchase is required to access this place of worship.", "<strong>Opening hours:</strong>", "• Morning: <strong>8:30 AM – 12:30 PM</strong>", "• Afternoon: <strong>4:30 – 7:00 PM</strong>", "The church follows the typical opening hours of the city's religious buildings. Hours may vary during special religious services or parish events."]},
+  22: {it:["<strong>Ingresso gratuito</strong> — luogo di culto ad accesso libero per tutti.", "<strong>Orari:</strong>", "• Mattino: <strong>9:00 – 12:30</strong>", "• Pomeriggio: <strong>16:00 – 19:00</strong>", "Gli orari possono subire lievi variazioni in base alle attività parrocchiali o alla disponibilità dei custodi. Il <strong>momento migliore per una visita turistica</strong> è il tardo pomeriggio, poco prima delle funzioni serali, quando la luce calda valorizza le texture medievali della facciata."],en:["<strong>Free admission</strong> — a place of worship with free access for all.", "<strong>Opening hours:</strong>", "• Morning: <strong>9:00 AM – 12:30 PM</strong>", "• Afternoon: <strong>4:00 – 7:00 PM</strong>", "Hours may vary slightly depending on parish activities or the availability of custodians. The <strong>best time for a tourist visit</strong> is late afternoon, just before evening services, when the warm light enhances the medieval textures of the façade."]},
+  27: {it:["Il Palazzo dell'Emiciclo ospita la sede del <strong>Consiglio regionale dell'Abruzzo</strong> ed è principalmente un edificio istituzionale.", "La <strong>facciata esterna con il portico semicircolare</strong> e il colonnato con i busti dei sedici illustri abruzzesi sono sempre visibili e accessibili gratuitamente.", "La <strong>sala ipogea da 250 posti</strong> viene utilizzata per convegni, conferenze e presentazioni culturali. Per informazioni sugli eventi aperti al pubblico, consultare i canali del Consiglio regionale dell'Abruzzo."],en:["Palazzo dell'Emiciclo houses the <strong>Abruzzo Regional Council</strong> and is primarily an institutional building.", "The <strong>external façade with the semicircular portico</strong> and the colonnade with the busts of the sixteen illustrious Abruzzese citizens are always visible and freely accessible.", "The <strong>250-seat underground hall</strong> is used for conventions, conferences, and cultural presentations. For information on events open to the public, consult the channels of the Abruzzo Regional Council."]},
+
+  8: {it:["I Quattro Cantoni sono uno <strong>spazio pubblico sempre accessibile e gratuito</strong>. Si trovano all'incrocio tra Corso Vittorio Emanuele e via Garibaldi, nel cuore del centro storico.", "Questo crocevia è il punto dove si incontrano simbolicamente i confini dei quattro quarti storici della città. È uno dei luoghi di passaggio più frequentati della città, animato tutto il giorno da cittadini e turisti."],en:["The Quattro Cantoni is a <strong>public space, always freely accessible</strong>. Located at the intersection of Corso Vittorio Emanuele and Via Garibaldi, in the heart of the historic center.", "This crossroads is the symbolic meeting point of the four historic quarters' boundaries. It is one of the city's most frequented spots, bustling throughout the day with residents and tourists."]},
+  23: {it:["L'Auditorium è visibile ed ammirabile <strong>esternamente in qualsiasi momento</strong>, essendo parte integrante del parco pubblico del Forte Spagnolo. <strong>Ingresso esterno gratuito.</strong>", "<strong>Accesso interno:</strong> solo durante gli eventi in programma. Non esiste un orario continuativo per le visite turistiche.", "<strong>Biglietti:</strong> l'ingresso per concerti e conferenze può essere gratuito o a pagamento a seconda dell'ente organizzatore. I biglietti per i concerti delle principali istituzioni musicali aquilane (Solisti Aquilani, Barattelli) sono acquistabili online o direttamente in loco prima dell'evento.", "Per il calendario degli eventi consulta i siti ufficiali dei <strong>Solisti Aquilani</strong> e della <strong>Società Aquilana dei Concerti \"B. Barattelli\"</strong>."],en:["The Auditorium can be viewed and admired <strong>from outside at any time</strong>, as it is an integral part of the Forte Spagnolo public park. <strong>Free outdoor access.</strong>", "<strong>Interior access:</strong> only during scheduled events. There are no regular tourist visiting hours.", "<strong>Tickets:</strong> admission to concerts and conferences may be free or paid depending on the organizer. Tickets for concerts by L'Aquila's main musical institutions (Solisti Aquilani, Barattelli) can be purchased online or directly on-site before the event.", "For the events calendar, check the official websites of the <strong>Solisti Aquilani</strong> and the <strong>Società Aquilana dei Concerti \"B. Barattelli\"</strong>."]},
+  24: {it:["Il palazzo è una <strong>residenza privata di altissimo pregio</strong>: non è aperto al pubblico con orario museale quotidiano.", "<strong>Aperture speciali</strong> in occasione di eventi culturali programmati:", "• <strong>Giornate ADSI</strong> (Associazione Dimore Storiche Italiane)", "• Iniziative <strong>Palazzi Aperti</strong> legate a L'Aquila Capitale della Cultura 2026", "In queste occasioni: orari solitamente <strong>10:00–13:00</strong> e <strong>15:00–18:00</strong>, con visite guidate su prenotazione, gratuite o con contributo minimo.", "Per aggiornamenti sulle aperture: <strong>Welcome AQ</strong> (infopoint) o i calendari di <strong>laquila2026.it</strong>."],en:["The palace is a <strong>private residence of the highest quality</strong>: it is not open to the public with daily museum hours.", "<strong>Special openings</strong> during scheduled cultural events:", "• <strong>ADSI Days</strong> (Associazione Dimore Storiche Italiane – Historic Residences)", "• <strong>Palazzi Aperti</strong> initiatives linked to L'Aquila Capital of Culture 2026", "On these occasions: hours typically <strong>10:00 AM–1:00 PM</strong> and <strong>3:00–6:00 PM</strong>, with guided tours by reservation, free or with minimal fee.", "For updates on openings: <strong>Welcome AQ</strong> (info point) or the <strong>laquila2026.it</strong> calendars."]},
+  25: {it:["La piazza è uno <strong>spazio pubblico sempre accessibile e gratuito</strong>, visitabile in qualsiasi momento della giornata.", "È uno degli spazi pubblici più eleganti del centro storico, particolarmente frequentata durante le ore serali quando diventa punto di ritrovo per residenti e turisti."],en:["The square is a <strong>public space, always accessible and free of charge</strong>, visitable at any time of day.", "It is one of the most elegant public spaces in the historic center, particularly busy during evening hours when it becomes a gathering point for residents and tourists."]},
+  26: {it:["L'accesso è <strong>gratuito</strong> quando l'edificio ospita mostre o eventi aperti alla cittadinanza (la maggior parte delle occasioni di apertura).", "<strong>Orari tipici durante le mostre:</strong>", "• Mattino: <strong>10:00 – 13:00</strong>", "• Pomeriggio: <strong>16:00 – 19:30</strong>", "Gli orari non sono fissi come un museo tradizionale: sono legati alla <strong>programmazione degli eventi</strong> ospitati. Per verificare se ci sono esposizioni in corso, consulta il sito del <strong>Comune di L'Aquila</strong> o l'infopoint <strong>Welcome AQ</strong>. Si trova in <strong>Piazza Santa Margherita</strong>, accanto a Palazzo Margherita."],en:["Admission is <strong>free</strong> when the building hosts exhibitions or events open to the public (the majority of opening occasions).", "<strong>Typical hours during exhibitions:</strong>", "• Morning: <strong>10:00 AM – 1:00 PM</strong>", "• Afternoon: <strong>4:00 – 7:30 PM</strong>", "Hours are not fixed like a traditional museum: they are linked to the <strong>events program</strong>. To check if there are current exhibitions, consult the <strong>Municipality of L'Aquila</strong> website or the <strong>Welcome AQ</strong> info point. Located in <strong>Piazza Santa Margherita</strong>, next to Palazzo Margherita."]},
+  28: {it:["La porta è una struttura <strong>pubblica sempre visibile e accessibile gratuitamente</strong> dall'esterno, 24 ore su 24.", "Restaurata nel <strong>2015</strong> dopo i danni del sisma del 2009, è tornata a essere uno degli accessi principali al centro storico. Passarci sotto è un'esperienza storica: l'arco monumentale introduce al sistema di strade che conducono direttamente a Piazza Duomo."],en:["The gate is a <strong>public structure, always visible and freely accessible</strong> from the outside, 24 hours a day.", "Restored in <strong>2015</strong> after the 2009 earthquake damage, it has returned to being one of the main entrances to the historic center. Walking through it is a historic experience: the monumental arch introduces the network of streets leading directly to Piazza Duomo."]},
+  29: {it:["Porta Napoli è una struttura <strong>pubblica sempre visibile e accessibile gratuitamente</strong>, inserita in un'area urbana aperta.", "È il principale accesso al centro storico da sud, al termine di Viale Francesco Crispi. Rappresenta uno dei punti di riferimento visivi più importanti per chi arriva in città dalla direzione di Roma e Napoli."],en:["Porta Napoli is a <strong>public structure, always visible and freely accessible</strong>, set in an open urban area.", "It is the main access to the historic center from the south, at the end of Viale Francesco Crispi. It represents one of the most important visual landmarks for those arriving in the city from the direction of Rome and Naples."]},
+  10: {it:["La statua è collocata in <strong>Piazza Palazzo</strong>, uno spazio pubblico <strong>sempre accessibile e gratuito</strong>, 24 ore su 24.", "È uno dei monumenti più fotografati del centro storico. La sua collocazione di fronte a Palazzo Margherita la rende parte di un percorso ideale tra i simboli del potere civico aquilano."],en:["The statue is located in <strong>Piazza Palazzo</strong>, a public space <strong>always accessible and free</strong>, 24 hours a day.", "It is one of the most photographed monuments in the historic center. Its placement in front of Palazzo Margherita makes it part of an ideal itinerary through the symbols of L'Aquila's civic power."]},
+  30: {it:["Trattandosi di una <strong>proprietà privata</strong> in parte abitata e in parte adibita a uffici, non esiste un orario museale fisso.", "È possibile ammirare la splendida <strong>architettura esterna e il portale durazzesco</strong> passeggiando lungo via Santa Giusta. Per accedere ai cortili e ai loggiati, l'occasione migliore sono le <strong>aperture straordinarie del FAI</strong> o eventi culturali dedicati ai palazzi storici. Controlla il calendario su <strong>fai.it</strong> o nei canali del Comune."],en:["As a <strong>private property</strong>, partly inhabited and partly used as offices, there are no fixed museum hours.", "You can admire the splendid <strong>exterior architecture and the Durazzesque portal</strong> while strolling along Via Santa Giusta. To access the courtyards and loggias, the best opportunity is during <strong>FAI extraordinary openings</strong> or cultural events dedicated to historic buildings. Check the calendar at <strong>fai.it</strong> or via the Municipality's channels."]},
+  31: {it:["Essendo sede del <strong>Rettorato dell'Università dell'Aquila</strong>, l'accesso agli interni è possibile durante gli orari d'ufficio, generalmente <strong>lunedì–venerdì</strong>.", "Per visite approfondite ai saloni storici, l'occasione ideale sono eventi speciali come le <strong>Giornate FAI</strong> o <strong>\"Sharper – La Notte dei Ricercatori\"</strong>, durante i quali l'Ateneo apre le sue sale alla comunità. Ingresso solitamente gratuito durante questi eventi."],en:["As the seat of the <strong>Rectorate of the University of L'Aquila</strong>, interior access is possible during office hours, generally <strong>Monday–Friday</strong>.", "For in-depth visits to the historic halls, the ideal opportunity is during special events such as <strong>FAI Days</strong> or <strong>\"Sharper – Researchers' Night\"</strong>, when the University opens its rooms to the community. Admission is usually free during these events."]},
+  32: {it:["Palazzo Pica Alfieri è una <strong>residenza privata vincolata</strong> abitata dalla famiglia proprietaria. L'accesso non segue un orario fisso.", "I saloni nobiliari vengono aperti al pubblico in <strong>occasione di convegni, mostre, concerti</strong> ed eventi culturali. Per visite guidate, è possibile partecipare alle <strong>Giornate FAI</strong> o a iniziative di associazioni culturali locali. Controlla i canali del <strong>FAI Delegazione dell'Aquila</strong> per le date."],en:["Palazzo Pica Alfieri is a <strong>protected private residence</strong> inhabited by the owning family. Access does not follow a fixed schedule.", "The stately halls are open to the public for <strong>conferences, exhibitions, concerts</strong>, and cultural events. For guided tours, you can participate in <strong>FAI Days</strong> or initiatives by local cultural associations. Check the <strong>FAI Delegation of L'Aquila</strong> channels for dates."]},
+  33: {it:["Il Parco della Memoria è uno <strong>spazio pubblico aperto e ad accesso gratuito</strong>, visitabile liberamente tutti i giorni.", "L'appuntamento più sentito è la <strong>notte tra il 5 e il 6 aprile</strong>, con la fiaccolata e la cerimonia delle 3:32. Il 6 aprile si svolgono <strong>cerimonie istituzionali e deposizioni di corone</strong>. Il parco si trova a <strong>Piazzale Paoli</strong>, a pochi passi da via Campo di Fossa."],en:["The Memorial Park is a <strong>public open space with free admission</strong>, freely accessible every day.", "The most poignant occasion is the <strong>night of April 5th–6th</strong>, with the torchlight procession and the 3:32 AM ceremony. On April 6th, <strong>institutional ceremonies and wreath-layings</strong> take place. The park is located in <strong>Piazzale Paoli</strong>, steps from Via Campo di Fossa."]},
+  34: {it:["Il <strong>nuovo Ponte Belvedere è attualmente in fase conclusiva di cantiere</strong>. Secondo il cronoprogramma istituzionale, la riapertura definitiva al traffico veicolare e pedonale è prevista per i <strong>primi mesi del 2026</strong>.", "Una volta operativo, sarà un <strong>attrattore monumentale</strong>: un ponte strallato in acciaio con vista panoramica sulla vallata dell'Aterno e sui monti del Gran Sasso. Per aggiornamenti sullo stato dei lavori, consulta il sito del <strong>Comune di L'Aquila</strong>."],en:["The <strong>new Belvedere Bridge is currently in its final construction phase</strong>. According to the institutional timetable, the definitive reopening to vehicular and pedestrian traffic is expected in the <strong>first months of 2026</strong>.", "Once operational, it will be a <strong>monumental attraction</strong>: a cable-stayed steel bridge with panoramic views over the Aterno Valley and Gran Sasso mountains. For updates on construction progress, consult the <strong>Municipality of L'Aquila</strong> website."]},
+  35: {it:["Palazzo Margherita è la <strong>sede del Comune dell'Aquila</strong>, un palazzo istituzionale in piena attività. La fruizione turistica non segue le logiche di un museo tradizionale.", "<strong>Accesso agli interni:</strong> garantito principalmente attraverso <strong>visite guidate organizzate dal Comune</strong> in collaborazione con associazioni locali e il <strong>FAI</strong>. Queste visite permettono di ammirare i saloni restaurati nel rispetto dell'attività amministrativa quotidiana.", "La <strong>facciata</strong> e la <strong>Torre Civica</strong> sono sempre visibili e fotografabili dall'esterno, gratuitamente. Per informazioni sulle visite guidate, contattare l'<strong>Ufficio Cultura del Comune</strong> o il <strong>FAI Delegazione dell'Aquila</strong>."],en:["Palazzo Margherita is the <strong>seat of the Municipality of L'Aquila</strong>, a fully operational institutional building. Tourist access does not follow the logic of a traditional museum.", "<strong>Interior access:</strong> guaranteed primarily through <strong>guided tours organized by the Municipality</strong> in collaboration with local associations and the <strong>FAI</strong> (Italian National Trust). These tours allow visitors to admire the restored halls while respecting daily administrative activities.", "The <strong>façade</strong> and <strong>Civic Tower</strong> are always visible and photographable from outside, free of charge. For information on guided tours, contact the <strong>Municipality's Cultural Office</strong> or the <strong>FAI Delegation of L'Aquila</strong>."]},
+  36: {it:["Le fontane sono collocate in <strong>Piazza Duomo</strong>, spazio pubblico <strong>sempre accessibile e gratuito</strong> 24 ore su 24.", "Particolarmente suggestive di sera grazie al <strong>sistema di illuminazione LED</strong> integrato nella nuova pavimentazione inaugurata nel 2024. Sono il punto di riferimento visivo della piazza e lo sfondo ideale per passeggiare tra Cattedrale e Chiesa delle Anime Sante."],en:["The fountains are located in <strong>Piazza Duomo</strong>, a public space <strong>always freely accessible</strong> 24 hours a day.", "Particularly evocative in the evening thanks to the <strong>LED lighting system</strong> integrated into the new paving inaugurated in 2024. They are the visual reference point of the square and the ideal backdrop for strolling between the Cathedral and the Church of the Anime Sante."]},
+  37: {it:["I portici sono un <strong>passaggio pubblico aperto e gratuito</strong>, percorribile liberamente tutti i giorni.", "Costituiscono uno dei percorsi più piacevoli del centro storico: partendo da <strong>via Vittorio Veneto</strong>, il corridoio porticato conduce direttamente alla piazza della <strong>Basilica di San Bernardino</strong>. Le botteghe e i locali sotto le arcate li rendono vivaci in ogni stagione."],en:["The porticoes are a <strong>public passageway, open and free</strong>, accessible every day.", "They form one of the most pleasant routes in the historic center: starting from <strong>Via Vittorio Veneto</strong>, the porticoed corridor leads directly to the square of the <strong>Basilica of San Bernardino</strong>. The shops and cafés beneath the arches keep them lively in every season."]},
+};
+
+// ── STATO ──
+let activeIdx   = null;
+let searchQuery = '';
+const mkEls     = [];
+
+function t(key)  { return T[key][currentLang]; }
+function getLang(m, field) {
+  if (field === 'name') return m.name;
+  return (currentLang==='en' && m[field+'En']) ? m[field+'En'] : m[field];
+}
+
+// ── APPLICA LINGUA APP ──
+function applyAppLang() {
+  document.getElementById('btn-it').classList.toggle('active', currentLang==='it');
+  document.getElementById('btn-en').classList.toggle('active', currentLang==='en');
+  document.getElementById('hdr-badge').textContent         = t('badge');
+  document.getElementById('hdr-stat').textContent          = t('stat');
+  document.getElementById('sidebar-head-title').textContent= t('sideHead');
+  document.getElementById('sidebar-head-sub').textContent  = t('sideSub');
+  document.getElementById('search-input').placeholder      = t('searchPh');
+  document.getElementById('map-hint').textContent          = t('mapHint');
+  document.getElementById('ov-label').textContent          = t('ovLabel');
+  document.getElementById('ov-back-text').textContent      = t('ovBack');
+  document.getElementById('ov-nav-label').textContent      = t('ovNav');
+  document.getElementById('ov-prev-btn').textContent       = t('ovPrev');
+  document.getElementById('ov-next-btn').textContent       = t('ovNext');
+  document.getElementById('ov-list-label').textContent     = t('ovList');
+  const tabBtnDesc = document.getElementById('tab-btn-desc');
+  const tabBtnInfo = document.getElementById('tab-btn-info');
+  if (tabBtnDesc) tabBtnDesc.textContent = t('tabDesc');
+  if (tabBtnInfo) tabBtnInfo.textContent = t('tabInfo');
+  const tabBtnHours = document.getElementById('tab-btn-hours');
+  if (tabBtnHours) tabBtnHours.textContent = t('tabHours');
+  rebuildLists();
+  if (activeIdx !== null) updateOverlayTexts(activeIdx);
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  applyAppLang();
+}
+
+// ── MAPPA ──
+const map = L.map('map', {
+  zoomControl:true, attributionControl:false,
+  minZoom:13, maxZoom:19,
+  maxBounds:L.latLngBounds([42.30,13.36],[42.40,13.46]),
+  maxBoundsViscosity:1.0
+}).setView([42.3505,13.3995],15);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+// Map hint: hide on first map click
+let mapHintHidden = false;
+map.on('click', ()=>{
+  if (!mapHintHidden) {
+    mapHintHidden = true;
+    const h = document.getElementById('map-hint');
+    if (h) { h.style.opacity='0'; h.style.transition='opacity 0.4s'; setTimeout(()=>h.style.display='none',400); }
+  }
+});
+
+// ── BUILD MARKERS ──
+MONUMENTS.forEach((m, i) => {
+  const icon = L.divIcon({
+    className:'',
+    html:`<div class="mk" id="mk-${i}"><span>${i+1}</span></div>`,
+    iconSize:[36,36], iconAnchor:[18,36], popupAnchor:[0,-40]
+  });
+  const marker = L.marker([m.lat,m.lng],{icon}).addTo(map);
+  marker.on('click',()=>{ setMapActive(i); openPopup(i); });
+  mkEls.push({marker, el:null});
+});
+
+// Build iniziale
+rebuildLists();
+
+// ── LISTA ──
+function rebuildLists(filter) {
+  const q = (filter !== undefined ? filter : searchQuery).toLowerCase().trim();
+  const listEl   = document.getElementById('list');
+  const ovListEl = document.getElementById('ov-list-items');
+  listEl.innerHTML   = '';
+  ovListEl.innerHTML = '';
+
+  let count = 0;
+  MONUMENTS.forEach((m, i) => {
+    const matchesSearch = !q || m.name.toLowerCase().includes(q) || getLang(m,'type').toLowerCase().includes(q);
+    if (!matchesSearch) return;
+    count++;
+
+    // Sidebar item
+    const el = document.createElement('div');
+    el.className = 'm-item' + (activeIdx === i ? ' active' : '');
+    el.innerHTML = `
+      <span class="m-num">${String(i+1).padStart(2,'0')}</span>
+      <div class="m-info">
+        <div class="m-name">${getLang(m,'name')}</div>
+        <div class="m-type">${getLang(m,'type')}</div>
+      </div>
+      <div class="m-dot ${m.has360?'ready':''}" title="${m.has360?t('dotAvail'):t('dotSoon')}"></div>
+    `;
+    el.onclick = () => open360(i);
+    listEl.appendChild(el);
+    mkEls[i].el = el;
+
+    // Overlay list item
+    const oli = document.createElement('div');
+    oli.className = 'ov-list-item' + (activeIdx === i ? ' active' : '');
+    oli.id = `oli-${i}`;
+    oli.innerHTML = `
+      <span class="ov-li-num">${String(i+1).padStart(2,'0')}</span>
+      <span class="ov-li-name">${getLang(m,'name')}</span>
+    `;
+    oli.onclick = () => open360(i);
+    ovListEl.appendChild(oli);
+  });
+
+  if (count === 0) {
+    listEl.innerHTML = `<div class="no-results">${t('noResults')}</div>`;
+  }
+}
+
+function filterList(val) {
+  searchQuery = val;
+  rebuildLists(val);
+}
+
+// ── POPUP ──
+function openPopup(i) {
+  map.closePopup();
+  const m = MONUMENTS[i];
+  L.popup({maxWidth:260, minWidth:220, autoClose:false, closeOnClick:false})
+    .setLatLng([m.lat, m.lng])
+    .setContent(`
+      <div class="pop-inner">
+        <div class="pop-name">${getLang(m,'name')}</div>
+        <div class="pop-type">${getLang(m,'type')}</div>
+        <div class="pop-desc">${getLang(m,'desc').substring(0,100)}…</div>
+        <button class="pop-btn" onclick="open360(${i})">${t('popBtn')}</button>
+      </div>
+    `)
+    .openOn(map);
+}
+
+function setMapActive(i) {
+  document.querySelectorAll('.m-item').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.mk').forEach(e=>e.classList.remove('active'));
+  if (mkEls[i].el) mkEls[i].el.classList.add('active');
+  const mk = document.getElementById(`mk-${i}`);
+  if (mk) mk.classList.add('active');
+  activeIdx = i;
+  if (mkEls[i].el) {
+    mkEls[i].el.scrollIntoView({block:'nearest', behavior:'smooth'});
+  }
+}
+
+// ── OVERLAY 360° ──
+function updateOverlayTexts(i) {
+  switchTab('desc');
+  const m = MONUMENTS[i];
+  const infoEl = document.getElementById('ov-info-text');
+  const tabBtn = document.getElementById('tab-btn-info');
+  const info = MONUMENT_INFO[m.id];
+  if (info && info[currentLang]) {
+    infoEl.innerHTML = info[currentLang].map(p=>`<p>${p}</p>`).join('');
+    tabBtn.style.display = '';
+  } else {
+    infoEl.innerHTML = '';
+    tabBtn.style.display = 'none';
+  }
+  // Orari & Info tab
+  const hoursEl = document.getElementById('ov-hours-text');
+  const hoursBtnEl = document.getElementById('tab-btn-hours');
+  const hours = MONUMENT_HOURS[m.id];
+  if (hours && hours[currentLang]) {
+    hoursEl.innerHTML = hours[currentLang].map(p=>`<p>${p}</p>`).join('');
+    hoursBtnEl.style.display = '';
+  } else {
+    hoursEl.innerHTML = '';
+    hoursBtnEl.style.display = 'none';
+  }
+  document.getElementById('ov-name').textContent = getLang(m,'name');
+  document.getElementById('ov-type').textContent = getLang(m,'type');
+  document.getElementById('ov-desc').textContent = getLang(m,'desc');
+  document.getElementById('ov-counter').textContent = `${i+1}/${MONUMENTS.length}`;
+  // Aggiorna placeholder se visibile (scoped al viewer)
+  const viewer = document.getElementById('ov-viewer');
+  const phTitle = viewer.querySelector('.ph-title');
+  const phSub   = viewer.querySelector('.ph-sub strong');
+  const phTag   = viewer.querySelector('.ph-tag');
+  if (phTitle) phTitle.textContent = t('phTitle');
+  if (phSub)   phSub.textContent   = getLang(m,'name');
+  if (phTag)   phTag.textContent   = t('phTag');
+}
+
+function open360(i) {
+  map.closePopup();
+  setMapActive(i);
+  activeIdx = i;
+  updateOverlayTexts(i);
+
+  document.querySelectorAll('.ov-list-item').forEach(e=>e.classList.remove('active'));
+  const oli = document.getElementById(`oli-${i}`);
+  if (oli) { oli.classList.add('active'); oli.scrollIntoView({block:'nearest',behavior:'smooth'}); }
+
+  const viewer = document.getElementById('ov-viewer');
+  const m = MONUMENTS[i];
+  if (m.has360) {
+    viewer.innerHTML = `<canvas id="pano-canvas" style="width:100%;height:100%;display:block;cursor:grab;"></canvas><div id="pano-loading" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:var(--dark);"><div style="width:60px;height:60px;border:2px solid rgba(201,168,76,0.2);border-top:2px solid var(--gold);border-radius:50%;animation:spin 1s linear infinite;"></div><div style="font-family:Cinzel,serif;font-size:11px;letter-spacing:2px;color:var(--gold);opacity:0.7;">${t('loading360')}</div></div>`;
+    initPanoViewer(m.url360);
+  } else {
+    viewer.innerHTML = `
+      <div class="placeholder">
+        <div class="ph-ring"></div>
+        <div class="ph-title">${t('phTitle')}</div>
+        <div class="ph-sub">${t('phSub1')}<br><strong style="color:var(--parch);font-weight:600;">${getLang(MONUMENTS[i],'name')}</strong><br>${t('phSub2')}</div>
+        <div class="ph-tag">${t('phTag')}</div>
+      </div>
+    `;
+  }
+
+  document.getElementById('overlay').classList.add('open');
+}
+function m_at(i){ return MONUMENTS[i]; }
+
+function switchTab(tab) {
+  ['desc','info','hours'].forEach(t => {
+    document.getElementById('tab-panel-'+t).classList.toggle('active', tab===t);
+    document.getElementById('tab-btn-'+t).classList.toggle('active', tab===t);
+  });
+}
+
+function close360() {
+  document.getElementById('overlay').classList.remove('open');
+  stopPanoViewer();
+  document.getElementById('ov-viewer').innerHTML = '';
+  map.closePopup();
+  activeIdx = null;
+  document.querySelectorAll('.m-item').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.mk').forEach(e=>e.classList.remove('active'));
+  setTimeout(()=>map.invalidateSize(),120);
+}
+
+function navigatePrev() {
+  const i = ((activeIdx ?? 0) - 1 + MONUMENTS.length) % MONUMENTS.length;
+  open360(i);
+}
+function navigateNext() {
+  const i = ((activeIdx ?? -1) + 1) % MONUMENTS.length;
+  open360(i);
+}
+
+// ── VIEWER 360° NATIVO (WebGL canvas, no dipendenze) ──
+let panoRAF = null;
+let panoGL = null;
+
+function stopPanoViewer() {
+  if (panoRAF) { cancelAnimationFrame(panoRAF); panoRAF = null; }
+  if (panoGL)  { const ext = panoGL.getExtension('WEBGL_lose_context'); if(ext) ext.loseContext(); panoGL = null; }
+}
+
+function initPanoViewer(url) {
+  stopPanoViewer();
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    const loadEl = document.getElementById('pano-loading');
+    if (loadEl) loadEl.style.display = 'none';
+    const canvas = document.getElementById('pano-canvas');
+    if (!canvas) return;
+    startWebGLPano(canvas, img);
+  };
+  img.onerror = () => {
+    const loadEl = document.getElementById('pano-loading');
+    if (loadEl) loadEl.innerHTML = '<div style="font-family:Cinzel,serif;font-size:11px;letter-spacing:2px;color:var(--gold);opacity:0.6;text-align:center;padding:20px;">Errore caricamento immagine.<br>Verifica l\'URL della foto.</div>';
+  };
+  img.src = url;
+}
+
+function startWebGLPano(canvas, img) {
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  panoGL = gl;
+
+  // Resize canvas
+  function resize() {
+    const r = canvas.parentElement.getBoundingClientRect();
+    canvas.width  = r.width  * devicePixelRatio;
+    canvas.height = r.height * devicePixelRatio;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Shaders
+  const vsrc = `
+    attribute vec2 a_pos;
+    varying vec2 v_uv;
+    void main(){v_uv=a_pos*0.5+0.5;gl_Position=vec4(a_pos,0,1);}
+  `;
+  const fsrc = `
+    precision mediump float;
+    uniform sampler2D u_tex;
+    uniform float u_yaw;
+    uniform float u_pitch;
+    uniform float u_fov;
+    uniform float u_aspect;
+    varying vec2 v_uv;
+    #define PI 3.14159265359
+    void main(){
+      vec2 ndc = v_uv*2.0-1.0;
+      ndc.x *= u_aspect;
+      float f = 1.0/tan(u_fov*0.5);
+      vec3 ray = normalize(vec3(ndc.x/f, ndc.y/f, 1.0));
+      float cy=cos(u_yaw), sy=sin(u_yaw);
+      float cp=cos(u_pitch), sp=sin(u_pitch);
+      vec3 r;
+      r.x = cy*ray.x - sy*ray.z;
+      r.z = sy*ray.x + cy*ray.z;
+      r.y = ray.y;
+      float tmp = r.y;
+      r.y = cp*tmp - sp*r.z;
+      r.z = sp*tmp + cp*r.z;
+      float lon = atan(r.x, r.z);
+      float lat = asin(clamp(r.y/length(r),-1.0,1.0));
+      float u = (lon/(2.0*PI))+0.5;
+      float v = 1.0-((lat/PI)+0.5);
+      gl_FragColor = texture2D(u_tex, vec2(u,v));
+    }
+  `;
+
+  function compileShader(type, src) {
+    const s = gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s); return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compileShader(gl.VERTEX_SHADER, vsrc));
+  gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, fsrc));
+  gl.linkProgram(prog); gl.useProgram(prog);
+
+  // Quad
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog,'a_pos');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+
+  // Texture
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img);
+
+  const uYaw    = gl.getUniformLocation(prog,'u_yaw');
+  const uPitch  = gl.getUniformLocation(prog,'u_pitch');
+  const uFov    = gl.getUniformLocation(prog,'u_fov');
+  const uAspect = gl.getUniformLocation(prog,'u_aspect');
+  gl.uniform1i(gl.getUniformLocation(prog,'u_tex'),0);
+
+  // State
+  let yaw=0, pitch=0, fov=1.1, drag=false, lastX=0, lastY=0, autoRotate=true;
+
+  canvas.addEventListener('mousedown', e=>{ drag=true; lastX=e.clientX; lastY=e.clientY; autoRotate=false; canvas.style.cursor='grabbing'; });
+  window.addEventListener('mouseup', ()=>{ drag=false; canvas.style.cursor='grab'; });
+  window.addEventListener('mousemove', e=>{
+    if(!drag) return;
+    yaw   -= (e.clientX-lastX)*0.005;
+    pitch  = Math.max(-1.2, Math.min(1.2, pitch-(e.clientY-lastY)*0.005));
+    lastX=e.clientX; lastY=e.clientY;
+  });
+  canvas.addEventListener('wheel', e=>{ fov=Math.max(0.4,Math.min(2.0,fov+e.deltaY*0.001)); e.preventDefault(); }, {passive:false});
+
+  // Touch
+  let lastTX=0, lastTY=0, lastDist=0;
+  canvas.addEventListener('touchstart', e=>{ autoRotate=false; if(e.touches.length===1){lastTX=e.touches[0].clientX;lastTY=e.touches[0].clientY;} else if(e.touches.length===2){lastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);} e.preventDefault(); },{passive:false});
+  canvas.addEventListener('touchmove', e=>{
+    if(e.touches.length===1){
+      yaw  -= (e.touches[0].clientX-lastTX)*0.007;
+      pitch = Math.max(-1.2,Math.min(1.2,pitch-(e.touches[0].clientY-lastTY)*0.007));
+      lastTX=e.touches[0].clientX; lastTY=e.touches[0].clientY;
+    } else if(e.touches.length===2){
+      const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+      fov=Math.max(0.4,Math.min(2.0,fov-(d-lastDist)*0.003)); lastDist=d;
+    }
+    e.preventDefault();
+  },{passive:false});
+
+  function render() {
+    if (!document.getElementById('pano-canvas')) return;
+    if (autoRotate) yaw += 0.003;
+    gl.uniform1f(uYaw,   yaw);
+    gl.uniform1f(uPitch, pitch);
+    gl.uniform1f(uFov,   fov);
+    gl.uniform1f(uAspect, canvas.width/canvas.height);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    panoRAF = requestAnimationFrame(render);
+  }
+  render();
+}
+
+document.addEventListener('keydown', e => { if(e.key==='Escape') close360(); });
+
+</script>
+</body>
+</html>
